@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'MainMenu.dart';
-import 'quizmodel.dart'; // Import the new model file
+import 'quizmodel.dart';
+import 'quizmod.dart';
 
 void main() {
   runApp(const QuizApp());
@@ -25,7 +26,6 @@ class QuizListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use the quiz data from QuizDataStore
     final List<QuizModel> quizData = QuizDataStore.getSampleQuizzes();
 
     return Scaffold(
@@ -177,34 +177,10 @@ class QuizDetailPage extends StatefulWidget {
 
 class _QuizDetailPageState extends State<QuizDetailPage> {
   Set<String> selectedMods = {};
-  final List<Map<String, dynamic>> modsList = [
-    {
-      'id': 'double_time',
-      'icon': Icons.timer_outlined,
-      'label': 'DOUBLE TIME',
-      'desc': 'Timer 2x faster'
-    },
-    {
-      'id': 'no_time',
-      'icon': Icons.timer_off_outlined,
-      'label': 'NO TIME',
-      'desc': 'No timer'
-    },
-    {
-      'id': 'perfectionist',
-      'icon': Icons.percent,
-      'label': 'PERFECTIONIST',
-      'desc': 'Accuracy must be 100%'
-    },
-    {
-      'id': 'one_more_try',
-      'icon': Icons.refresh,
-      'label': 'ONE MORE TRY',
-      'desc': 'One extra life'
-    },
-  ];
 
   void showModsDialog(BuildContext context) {
+    final modsList = QuizModsStore.getAllMods();
+    
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -224,22 +200,22 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 children: modsList.map((mod) => GestureDetector(
                   onTap: () {
                     setState(() {
-                      selectedMods.contains(mod['id'])
-                          ? selectedMods.remove(mod['id'])
-                          : selectedMods.add(mod['id']);
+                      selectedMods.contains(mod.id)
+                          ? selectedMods.remove(mod.id)
+                          : selectedMods.add(mod.id);
                     });
                   },
                   child: Card(
-                    color: selectedMods.contains(mod['id']) ? Colors.purpleAccent : Colors.white,
+                    color: selectedMods.contains(mod.id) ? Colors.purpleAccent : Colors.white,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(mod['icon'], size: 34, color: Colors.deepPurple),
+                        Icon(mod.icon, size: 34, color: Colors.deepPurple),
                         const SizedBox(height: 10),
-                        Text(mod['label'],
+                        Text(mod.label,
                             style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
                         const SizedBox(height: 4),
-                        Text(mod['desc'],
+                        Text(mod.description,
                             style: const TextStyle(fontSize: 12, color: Colors.black), textAlign: TextAlign.center),
                       ],
                     ),
@@ -398,10 +374,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   Wrap(
                     spacing: 10,
                     children: selectedMods.map((modId) {
-                      final mod = modsList.firstWhere((m) => m['id'] == modId);
+                      final mod = QuizModsStore.getModById(modId);
+                      if (mod == null) return const SizedBox.shrink();
                       return Chip(
-                        avatar: Icon(mod['icon'], size: 18),
-                        label: Text(mod['label'], style: const TextStyle(color: Colors.white)),
+                        avatar: Icon(mod.icon, size: 18),
+                        label: Text(mod.label, style: const TextStyle(color: Colors.white)),
                         backgroundColor: Colors.deepPurple,
                       );
                     }).toList(),
@@ -486,17 +463,23 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   int correctAnswers = 0;
   int wrongAnswers = 0;
   late List<QuestionModel> questions;
+  bool extraLifeUsed = false;
 
   @override
   void initState() {
     super.initState();
     totalQuestions = widget.quiz.questionCount;
-    remainingSeconds = initialSeconds;
+    
+    final activeMods = widget.selectedMods ?? {};
+    
+    // Set initial time based on mods
+    remainingSeconds = QuizModsStore.isTimerDisabled(activeMods) 
+        ? double.infinity 
+        : initialSeconds;
 
-    // Load questions using quiz ID instead of title
+    // Load questions using quiz ID
     questions = QuizDataStore.getQuestionsForQuiz(widget.quiz.id);
 
-    // Limit to questionCount
     if (questions.length > totalQuestions) {
       questions = questions.sublist(0, totalQuestions);
     }
@@ -508,10 +491,21 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
   void _startTimer() {
     _timer?.cancel();
+    
+    final activeMods = widget.selectedMods ?? {};
+    
+    // Don't start timer if no_time mod is active
+    if (QuizModsStore.isTimerDisabled(activeMods)) {
+      return;
+    }
+    
+    // Get timer decrement based on mods
+    final timerDecrement = QuizModsStore.getTimerDecrement(activeMods);
+    
     _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (mounted && remainingSeconds > 0) {
         setState(() {
-          remainingSeconds -= 0.1;
+          remainingSeconds -= timerDecrement;
           if (remainingSeconds < 0) remainingSeconds = 0;
         });
       } else if (remainingSeconds <= 0) {
@@ -546,6 +540,15 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
   void _navigateToResults() {
     _timer?.cancel();
+    
+    final activeMods = widget.selectedMods ?? {};
+    
+    // Calculate score with mod multiplier
+    final score = QuizModsStore.calculateScore(
+      correctAnswers: correctAnswers,
+      activeMods: activeMods,
+    );
+    
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -554,6 +557,8 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
           correctAnswers: correctAnswers,
           wrongAnswers: wrongAnswers,
           totalQuestions: totalQuestions,
+          finalScore: score,
+          activeMods: activeMods,
         ),
       ),
     );
@@ -567,32 +572,61 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
       return;
     }
 
+    final activeMods = widget.selectedMods ?? {};
     final isCorrect = _selectedOptionIndex == questions[currentQuestion - 1].correctAnswerIndex;
+    
+    // Use mod logic to handle answer
+    final result = QuizModsStore.handleAnswerWithMods(
+      isCorrect: isCorrect,
+      activeMods: activeMods,
+      currentTime: remainingSeconds,
+      maxTime: maxSeconds,
+      extraLifeUsed: extraLifeUsed,
+    );
+
     setState(() {
       if (isCorrect) {
         correctAnswers++;
-        remainingSeconds += 2.0;
-        if (remainingSeconds > maxSeconds) {
-          remainingSeconds = maxSeconds;
-        }
       } else {
         wrongAnswers++;
-        remainingSeconds -= 2.0;
-        if (remainingSeconds < 0) remainingSeconds = 0;
+      }
+      
+      // Handle extra life
+      if (result['useExtraLife'] == true) {
+        extraLifeUsed = true;
+      }
+      
+      // Update time
+      if (!QuizModsStore.isTimerDisabled(activeMods)) {
+        remainingSeconds = QuizModsStore.calculateNewTime(
+          currentTime: remainingSeconds,
+          timeChange: result['timeChange'],
+          maxTime: maxSeconds,
+        );
       }
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isCorrect ? 'Correct! +2 seconds' : 'Wrong! -2 seconds'),
+        content: Text(result['message']),
         backgroundColor: isCorrect ? Colors.green : Colors.red,
         duration: const Duration(milliseconds: 800),
       ),
     );
 
+    // Check if quiz should end
+    if (result['endQuiz'] == true) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (!mounted) return;
+        _timer?.cancel();
+        _navigateToResults();
+      });
+      return;
+    }
+
     Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
-      if (currentQuestion < totalQuestions && remainingSeconds > 0) {
+      if (currentQuestion < totalQuestions && (remainingSeconds > 0 || QuizModsStore.isTimerDisabled(activeMods))) {
         setState(() {
           currentQuestion++;
           _selectedOptionIndex = -1;
@@ -612,6 +646,9 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final activeMods = widget.selectedMods ?? {};
+    final isTimerDisabled = QuizModsStore.isTimerDisabled(activeMods);
+    
     return WillPopScope(
       onWillPop: () async {
         _timer?.cancel();
@@ -636,7 +673,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
                     children: [
                       _buildTopBar(),
                       const SizedBox(height: 10),
-                      _buildTimerProgress(),
+                      _buildTimerProgress(isTimerDisabled),
                     ],
                   ),
                 ),
@@ -694,9 +731,40 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
     );
   }
 
-  Widget _buildTimerProgress() {
+  Widget _buildTimerProgress(bool isTimerDisabled) {
+    if (isTimerDisabled) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            '$currentQuestion/$totalQuestions',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 8,
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: Text(
+                'NO TIMER',
+                style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    
     final double progress = remainingSeconds / maxSeconds;
     final bool isLowTime = remainingSeconds <= 3;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -831,6 +899,8 @@ class QuizResultPage extends StatelessWidget {
   final int correctAnswers;
   final int wrongAnswers;
   final int totalQuestions;
+  final int? finalScore;
+  final Set<String>? activeMods;
 
   const QuizResultPage({
     Key? key,
@@ -838,6 +908,8 @@ class QuizResultPage extends StatelessWidget {
     this.correctAnswers = 0,
     this.wrongAnswers = 0,
     this.totalQuestions = 0,
+    this.finalScore,
+    this.activeMods,
   }) : super(key: key);
 
   @override
@@ -845,7 +917,7 @@ class QuizResultPage extends StatelessWidget {
     final int accuracy = totalQuestions > 0
         ? ((correctAnswers / totalQuestions) * 100).round()
         : 0;
-    final int score = correctAnswers * 1000;
+    final int score = finalScore ?? (correctAnswers * 1000);
 
     return Scaffold(
       body: Stack(
@@ -923,6 +995,9 @@ class QuizResultPage extends StatelessWidget {
   }
 
   Widget _buildOverviewContent(int score, int accuracy) {
+    final mods = activeMods ?? {};
+    final hasActiveMods = mods.isNotEmpty;
+    
     return Expanded(
       child: SingleChildScrollView(
         child: Column(
@@ -985,6 +1060,10 @@ class QuizResultPage extends StatelessWidget {
                   _buildResultRow('Wrong', wrongAnswers.toString()),
                   const SizedBox(height: 12),
                   _buildResultRow('Accuracy', '$accuracy%'),
+                  if (hasActiveMods) ...[
+                    const SizedBox(height: 12),
+                    _buildModsUsed(mods),
+                  ],
                 ],
               ),
             ),
@@ -1019,6 +1098,47 @@ class QuizResultPage extends StatelessWidget {
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModsUsed(Set<String> mods) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF6A35D8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Mods Used',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: mods.map((modId) {
+              final mod = QuizModsStore.getModById(modId);
+              if (mod == null) return const SizedBox.shrink();
+              return Chip(
+                avatar: Icon(mod.icon, size: 16, color: Colors.white),
+                label: Text(
+                  mod.label,
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+                backgroundColor: Colors.deepPurple,
+                padding: EdgeInsets.zero,
+              );
+            }).toList(),
           ),
         ],
       ),
