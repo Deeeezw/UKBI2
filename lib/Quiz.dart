@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'MainMenu.dart';
-import 'quizmodel.dart';
-import 'quizmod.dart';
+import 'QuizModel.dart';
+import 'QuizMod.dart';
 
 void main() {
   runApp(const QuizApp());
