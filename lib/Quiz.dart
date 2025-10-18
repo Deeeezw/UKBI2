@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'MainMenu.dart';
+import 'quizmodel.dart'; // Import the new model file
 
 void main() {
   runApp(const QuizApp());
@@ -20,182 +20,13 @@ class QuizApp extends StatelessWidget {
   }
 }
 
-class QuizModel {
-  final String title;
-  final String author;
-  final double progress;
-  final String difficulty;
-  final bool isCompleted;
-  final String description;
-  final int duration;
-  final int questionCount;
-  final double rating;
-  final String imagePath;
-
-  QuizModel({
-    required this.title,
-    required this.author,
-    required this.progress,
-    required this.difficulty,
-    required this.isCompleted,
-    required this.description,
-    required this.duration,
-    required this.questionCount,
-    required this.rating,
-    required this.imagePath,
-  });
-}
-
-// Updated QuestionModel with randomized answers
-class QuestionModel {
-  final String question;
-  final List<String> originalOptions;
-  final String correctAnswer;
-  late List<String> shuffledOptions;
-  late int correctAnswerIndex;
-
-  QuestionModel({
-    required this.question,
-    required this.originalOptions,
-    required this.correctAnswer,
-  }) {
-    // Shuffle the options and find the new index of correct answer
-    shuffledOptions = List.from(originalOptions);
-    shuffledOptions.shuffle(Random());
-    correctAnswerIndex = shuffledOptions.indexOf(correctAnswer);
-  }
-
-  // Method to reshuffle if needed
-  void reshuffleOptions() {
-    shuffledOptions.shuffle(Random());
-    correctAnswerIndex = shuffledOptions.indexOf(correctAnswer);
-  }
-}
-
-// Quiz data storage
-class QuizDataStore {
-  static Map<String, List<QuestionModel>> getQuizQuestions() {
-    return {
-      'Majas dan Persatiran': [
-        QuestionModel(
-          question: 'Apa arti kata majas dalam Bahasa Indonesia?',
-          originalOptions: [
-            'Jenis makanan',
-            'Gaya bahasa',
-            'Alat musik',
-            'Tempat wisata',
-          ],
-          correctAnswer: 'Gaya bahasa',
-        ),
-        QuestionModel(
-          question: 'Manakah contoh majas perbandingan?',
-          originalOptions: [
-            'Waktu adalah uang.',
-            'Aku lapar sekali.',
-            'Dia sedang membaca buku.',
-            'Mereka pergi ke pasar.',
-          ],
-          correctAnswer: 'Waktu adalah uang.',
-        ),
-        QuestionModel(
-          question: 'Pilih kalimat yang menggunakan majas personifikasi:',
-          originalOptions: [
-            'Angin berbisik di telingaku.',
-            'Aku berlari cepat sekali.',
-            'Mereka makan bersama di taman.',
-            'Ibu sedang tidur siang.',
-          ],
-          correctAnswer: 'Angin berbisik di telingaku.',
-        ),
-        QuestionModel(
-          question: 'Apa itu persajakan dalam puisi Bahasa Indonesia?',
-          originalOptions: [
-            'Pola bunyi pada akhir baris',
-            'Tema puisi',
-            'Jumlah kata dalam baris',
-            'Nama pengarang',
-          ],
-          correctAnswer: 'Pola bunyi pada akhir baris',
-        ),
-        QuestionModel(
-          question: '"Hatiku hancur mendengar kabar itu."\nMajas apa yang digunakan pada kalimat tersebut?',
-          originalOptions: [
-            'Personifikasi',
-            'Hiperbola',
-            'Metafora',
-            'Simile',
-          ],
-          correctAnswer: 'Metafora',
-        ),
-      ],
-      // Default questions for other quizzes
-      'default': List.generate(
-        10,
-            (index) => QuestionModel(
-          question: 'Question ${index + 1}: What is something?',
-          originalOptions: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
-          correctAnswer: 'Option 1',
-        ),
-      ),
-    };
-  }
-}
-
 class QuizListPage extends StatelessWidget {
   const QuizListPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final List<QuizModel> quizData = [
-      QuizModel(
-        title: 'Subjek, Predikat, Objek, dan Keterangan',
-        author: 'By Mas Owi',
-        progress: 0.1,
-        difficulty: 'Easy',
-        isCompleted: false,
-        description: 'Ini quiz SPOK.',
-        duration: 30,
-        questionCount: 10,
-        rating: 5.0,
-        imagePath: 'assets/gambar_randomquiz.png',
-      ),
-      QuizModel(
-        title: 'Majas dan Persatiran',
-        author: 'By AbdulGaming69',
-        progress: 0.5,
-        difficulty: 'Normal',
-        isCompleted: false,
-        description: 'Quiz menuju penyatir professional.',
-        duration: 25,
-        questionCount: 5,
-        rating: 4.5,
-        imagePath: 'assets/gambar_randomquiz.png',
-      ),
-      QuizModel(
-        title: 'Sejarah Bahasa Indonesia',
-        author: 'By Johanto',
-        progress: 0.7,
-        difficulty: 'Normal',
-        isCompleted: false,
-        description: 'Perjalanan memahami asal usul Bahasa Indonesia.',
-        duration: 40,
-        questionCount: 10,
-        rating: 4.8,
-        imagePath: 'assets/gambar_randomquiz.png',
-      ),
-      QuizModel(
-        title: 'Diksi',
-        author: 'By Professor Abdulahab',
-        progress: 1.0,
-        difficulty: 'Hard',
-        isCompleted: true,
-        description: 'Kenali diksi dan artinya.',
-        duration: 45,
-        questionCount: 10,
-        rating: 4.9,
-        imagePath: 'assets/gambar_randomquiz.png',
-      ),
-    ];
+    // Use the quiz data from QuizDataStore
+    final List<QuizModel> quizData = QuizDataStore.getSampleQuizzes();
 
     return Scaffold(
       body: Stack(
@@ -222,7 +53,7 @@ class QuizListPage extends StatelessWidget {
                           Navigator.pushAndRemoveUntil(
                             context,
                             MaterialPageRoute(builder: (context) => const MainMenu()),
-                                (route) => false,
+                            (route) => false,
                           );
                         },
                       ),
@@ -346,7 +177,6 @@ class QuizDetailPage extends StatefulWidget {
 
 class _QuizDetailPageState extends State<QuizDetailPage> {
   Set<String> selectedMods = {};
-
   final List<Map<String, dynamic>> modsList = [
     {
       'id': 'double_time',
@@ -425,7 +255,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   child: const Text('Close', style: TextStyle(color: Colors.deepPurple)),
                   onPressed: () => Navigator.pop(context),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -518,7 +348,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         Row(
                           children: List.generate(
                             5,
-                                (index) => Icon(
+                            (index) => Icon(
                               index < quiz.rating.floor() ? Icons.star : Icons.star_border,
                               color: Colors.amber,
                               size: 20,
@@ -550,7 +380,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       ],
                     ),
                   ),
-                  // --- MODS BUTTON AND CHIPS ---
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -577,8 +406,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       );
                     }).toList(),
                   ),
-                  // --- END MODS SECTION ---
-
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -639,11 +466,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   }
 }
 
-// IMPORTANT: Update your QuizQuestionPage to accept selectedMods as a parameter:
 class QuizQuestionPage extends StatefulWidget {
   final QuizModel quiz;
-  final Set<String>? selectedMods; // Add this, default to null for backwards compatibility
-
+  final Set<String>? selectedMods;
   const QuizQuestionPage({Key? key, required this.quiz, this.selectedMods}) : super(key: key);
 
   @override
@@ -668,13 +493,8 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
     totalQuestions = widget.quiz.questionCount;
     remainingSeconds = initialSeconds;
 
-    // Load questions based on quiz title
-    final allQuestions = QuizDataStore.getQuizQuestions();
-    if (allQuestions.containsKey(widget.quiz.title)) {
-      questions = allQuestions[widget.quiz.title]!;
-    } else {
-      questions = allQuestions['default']!;
-    }
+    // Load questions using quiz ID instead of title
+    questions = QuizDataStore.getQuestionsForQuiz(widget.quiz.id);
 
     // Limit to questionCount
     if (questions.length > totalQuestions) {
@@ -688,7 +508,6 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
   void _startTimer() {
     _timer?.cancel();
-
     _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (mounted && remainingSeconds > 0) {
         setState(() {
@@ -749,7 +568,6 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
     }
 
     final isCorrect = _selectedOptionIndex == questions[currentQuestion - 1].correctAnswerIndex;
-
     setState(() {
       if (isCorrect) {
         correctAnswers++;
@@ -766,7 +584,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isCorrect ? 'Correct! +5 seconds' : 'Wrong! -5 seconds'),
+        content: Text(isCorrect ? 'Correct! +2 seconds' : 'Wrong! -2 seconds'),
         backgroundColor: isCorrect ? Colors.green : Colors.red,
         duration: const Duration(milliseconds: 800),
       ),
@@ -774,7 +592,6 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
     Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
-
       if (currentQuestion < totalQuestions && remainingSeconds > 0) {
         setState(() {
           currentQuestion++;
@@ -805,7 +622,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
         body: Column(
           children: [
             Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 image: DecorationImage(
                   image: AssetImage('assets/background_quiz.png'),
                   fit: BoxFit.cover,
@@ -880,7 +697,6 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   Widget _buildTimerProgress() {
     final double progress = remainingSeconds / maxSeconds;
     final bool isLowTime = remainingSeconds <= 3;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -1218,7 +1034,7 @@ class QuizResultPage extends StatelessWidget {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const QuizListPage()),
-                (route) => false,
+            (route) => false,
           );
         },
         style: ElevatedButton.styleFrom(
