@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'MainMenu.dart';
 import 'QuizModel.dart';
 import 'QuizMod.dart';
+import 'ResultScreen.dart';
 
 void main() {
   runApp(const QuizApp());
@@ -894,105 +895,6 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   }
 }
 
-class QuizResultPage extends StatelessWidget {
-  final QuizModel quiz;
-  final int correctAnswers;
-  final int wrongAnswers;
-  final int totalQuestions;
-  final int? finalScore;
-  final Set<String>? activeMods;
-
-  const QuizResultPage({
-    Key? key,
-    required this.quiz,
-    this.correctAnswers = 0,
-    this.wrongAnswers = 0,
-    this.totalQuestions = 0,
-    this.finalScore,
-    this.activeMods,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final int accuracy = totalQuestions > 0
-        ? ((correctAnswers / totalQuestions) * 100).round()
-        : 0;
-    final int score = finalScore ?? (correctAnswers * 1000);
-
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/background_finishquiz.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(color: Colors.grey[100]);
-              },
-            ),
-          ),
-          Column(
-            children: [
-              _buildHeader(context),
-              _buildOverviewContent(score, accuracy),
-            ],
-          ),
-        ],
-      ),
-      bottomNavigationBar: _buildFinishButton(context),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 220,
-      decoration: const BoxDecoration(
-        color: Color(0xFF4C15A9),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: SafeArea(
-        child: Stack(
-          children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Congratulations!',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "You've finished ${quiz.title}!",
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildOverviewContent(int score, int accuracy) {
     final mods = activeMods ?? {};
