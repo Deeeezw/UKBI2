@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // ADD THIS LINE
 import 'package:shared_preferences/shared_preferences.dart';
 import 'WelcomePage.dart';
 import 'LoginPage.dart';
 import 'MainMenu.dart';
+import 'providers/QuizProviders.dart';
+import 'providers/UserProviders.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const QuiroApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => QuizProvider()),
+      ],
+      child: const QuiroApp(),
+    ),
+  );
 }
 
 class QuiroApp extends StatelessWidget {

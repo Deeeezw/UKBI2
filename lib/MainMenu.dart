@@ -1,272 +1,373 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'Quiz.dart';
 import 'WelcomePage.dart';
 import 'ProfileMenu.dart';
 import 'MultiplayerMenu.dart';
+import 'QuizList.dart';
+import 'providers/UserProviders.dart';
 
-// Halaman Utama dengan tampilan seperti gambar
 class MainMenu extends StatelessWidget {
   const MainMenu({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Make status bar transparent
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          // Purple decorative background shapes
-          Positioned(
-            top: -50,
-            left: -80,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4C15A9),
-                borderRadius: BorderRadius.circular(125),
-              ),
-            ),
+      extendBodyBehindAppBar: true,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/mainmenu2.png'),
+            fit: BoxFit.cover,
           ),
-          Positioned(
-            top: 80,
-            right: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                color: const Color(0xFFB388FF).withOpacity(0.5),
-                borderRadius: BorderRadius.circular(150),
-              ),
-            ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 15,
           ),
-          // Blue and Yellow decorative shape at bottom
-          Positioned(
-            bottom: -50,
-            left: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: const Color(0xFF00B0FF),
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(100),
-                ),
+          child: Stack(
+            children: [
+              // Profile picture circle (over gray circle on left)
+              Positioned(
+                top: screenHeight * 0.120,
+                left: screenWidth * 0.10,
+                child: _buildProfilePicture(context),
               ),
-            ),
-          ),
-          Positioned(
-            bottom: -30,
-            right: -80,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD600),
-                borderRadius: BorderRadius.circular(125),
+              // Username and UKBI level (BELOW profile picture)
+              Positioned(
+                top: screenHeight * 0.23,
+                left: screenWidth * 0.07,
+                child: _buildUserNameSection(context),
               ),
-            ),
+              // Performance stats (IN the dark purple box on RIGHT)
+              Positioned(
+                top: screenHeight * 0.165,
+                right: screenWidth * 0.08,
+                left: screenWidth * 0.41,
+                child: _buildPerformanceStats(context),
+              ),
+              // Play button (center)
+              Positioned(
+                top: screenHeight * 0.49,
+                left: screenWidth * 0.5 - 75,
+                child: _buildPlayButton(context),
+              ),
+              // Bottom buttons (centered in colored squares)
+              Positioned(
+                bottom: screenHeight * 0.075,
+                left: 0,
+                right: 0,
+                child: _buildBottomButtons(context),
+              ),
+            ],
           ),
-          // Main content
-          SafeArea(
-            child: Column(
-              children: [
-                // Logo at top left with white circle background
-                Padding(
-                  padding: const EdgeInsets.only(left: 20, top: 20),
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(8),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/logo_quiro.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            // Fallback if image not found
-                            return Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.flash_on,
-                                  size: 35,
-                                  color: Color(0xFFFFD600),
-                                ),
-                                Positioned(
-                                  right: 10,
-                                  child: Container(
-                                    width: 15,
-                                    height: 15,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF4C15A9),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
+        ),
+      ),
+    );
+  }
+
+  // Profile picture circle
+  Widget _buildProfilePicture(BuildContext context) {
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        final user = userProvider.currentUser;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProfileMenu()),
+            );
+          },
+          child: Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey[300],
+              border: Border.all(
+                color: const Color(0xFF2D0A5E),
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
                 ),
-                const Spacer(),
-                // Play button
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const QuizListPage()),
-                    );
-                  },
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF4C15A9),
-                      border: Border.all(
-                        color: const Color(0xFF7B3FF2),
-                        width: 8,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.play_arrow_rounded,
-                          color: Color(0xFFFFD600),
-                          size: 50,
-                        ),
-                        Text(
-                          'Play',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 40),
-                // Menu buttons
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Column(
-                    children: [
-                      _buildMenuButton(
-                        'Multiplayer',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const MultiplayerMenu()),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildMenuButton(
-                        'Options',
-                        onTap: () {
-                          _showOptionsDialog(context);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                // Performance card at bottom, now tappable
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => ProfileMenu()),
-                    );
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 24),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.black,
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Wowo',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Performance',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStat('Rank: #1825', isRank: true),
-                            Container(
-                              width: 1,
-                              height: 30,
-                              color: Colors.grey[300],
-                            ),
-                            _buildStat('UKBI: Madya', isRank: false),
-                            Container(
-                              width: 1,
-                              height: 30,
-                              color: Colors.grey[300],
-                            ),
-                            _buildStat('Accuracy: 94.11%', isRank: false),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
               ],
+            ),
+            child: user.avatarUrl != null
+                ? ClipOval(
+              child: Image.network(
+                user.avatarUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(Icons.person, size: 45, color: Colors.grey);
+                },
+              ),
+            )
+                : const Icon(
+              Icons.person,
+              size: 45,
+              color: Colors.grey,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserNameSection(BuildContext context) {
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        final user = userProvider.currentUser;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProfileMenu()),
+            );
+          },
+          child: SizedBox(
+            width: 120,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  user.username,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 35,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'UKBI: ${user.ukbiLevel}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPerformanceStats(BuildContext context) {
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        final user = userProvider.currentUser;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProfileMenu()),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Performance',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              _buildStatRow('Rank', '#${user.rank}'),
+              const SizedBox(height: 5),
+              _buildStatRow('Accuracy', '${user.accuracy.toStringAsFixed(2)}%'),
+              const SizedBox(height: 5),
+              _buildStatRow('Quiz Finished', '${user.quizzesCompleted}'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.75),
+            fontSize: 12,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlayButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const QuizListPage()),
+        );
+      },
+      child: Container(
+        width: 150,
+        height: 150,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF2D0A5E),
+          border: Border.all(
+            color: const Color(0xFF7B3FF2),
+            width: 5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 65,
+              height: 65,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFFFD600),
+              ),
+              child: const Icon(
+                Icons.play_arrow_rounded,
+                color: Color(0xFF2D0A5E),
+                size: 45,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Play',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomButtons(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildBottomButton(
+            icon: Icons.settings,
+            label: 'Options',
+            hasWhiteCircle: true,
+            onTap: () => _showOptionsDialog(context),
+          ),
+          _buildBottomButton(
+            icon: Icons.add,
+            label: 'Create',
+            hasWhiteCircle: true,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Create Quiz - Coming Soon!')),
+              );
+            },
+          ),
+          _buildBottomButton(
+            icon: Icons.people,
+            label: 'Multiplayer',
+            hasWhiteCircle: true,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MultiplayerMenu()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomButton({
+    required IconData icon,
+    required String label,
+    required bool hasWhiteCircle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: hasWhiteCircle ? 75 : null,
+            height: hasWhiteCircle ? 60 : null,
+            decoration: hasWhiteCircle
+                ? BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.95),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            )
+                : null,
+            child: Icon(
+              icon,
+              color: const Color(0xFF2D0A5E),
+              size: 35,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -274,51 +375,6 @@ class MainMenu extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuButton(String label, {required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF4C15A9),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStat(String text, {required bool isRank}) {
-    return Flexible(
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 11,
-          color: Colors.black87,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  // Options dialog with logout
   void _showOptionsDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -332,7 +388,9 @@ class MainMenu extends StatelessWidget {
               title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
-                // Navigate to settings
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Settings - Coming Soon!')),
+                );
               },
             ),
             ListTile(
@@ -349,13 +407,11 @@ class MainMenu extends StatelessWidget {
     );
   }
 
-  // Logout function
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', false);
     await prefs.remove('userEmail');
 
-    // Navigate back to welcome page
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const WelcomePage()),

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../models/QuizModel.dart';
+import '../QuizModel.dart';
 
 class QuizProvider with ChangeNotifier {
   // Private state variables

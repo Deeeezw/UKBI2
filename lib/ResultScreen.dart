@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'Quiz.dart';
+import 'package:provider/provider.dart';
 import 'QuizModel.dart';
 import 'QuizMod.dart';
+import 'QuizList.dart';
+import 'providers/UserProviders.dart';
 
 class QuizResultPage extends StatelessWidget {
   final QuizModel quiz;
@@ -27,27 +29,31 @@ class QuizResultPage extends StatelessWidget {
         ? ((correctAnswers / totalQuestions) * 100).round()
         : 0;
     final int score = finalScore ?? (correctAnswers * 1000);
-    final bool passed = correctAnswers == totalQuestions; // User must answer all correctly to pass
+    final bool passed = correctAnswers == totalQuestions;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/background_finishquiz.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(color: Colors.grey[100]);
-              },
-            ),
-          ),
-          Column(
+      body: Consumer<UserProvider>(
+        builder: (context, userProvider, child) {
+          return Stack(
             children: [
-              _buildHeader(context, passed),
-              _buildOverviewContent(score, accuracy),
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/background_finishquiz.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(color: Colors.grey[100]);
+                  },
+                ),
+              ),
+              Column(
+                children: [
+                  _buildHeader(context, passed),
+                  _buildOverviewContent(score, accuracy, userProvider),
+                ],
+              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
       bottomNavigationBar: _buildFinishButton(context),
     );
@@ -88,7 +94,7 @@ class QuizResultPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    passed 
+                    passed
                         ? "You've finished ${quiz.title}!"
                         : "You failed ${quiz.title}",
                     textAlign: TextAlign.center,
@@ -106,10 +112,11 @@ class QuizResultPage extends StatelessWidget {
     );
   }
 
-  Widget _buildOverviewContent(int score, int accuracy) {
+  Widget _buildOverviewContent(int score, int accuracy, UserProvider userProvider) {
     final mods = activeMods ?? {};
     final hasActiveMods = mods.isNotEmpty;
-    
+    final userStats = userProvider.currentUser;  // Changed from userStats to currentUser
+
     return Expanded(
       child: SingleChildScrollView(
         child: Column(
@@ -139,23 +146,28 @@ class QuizResultPage extends StatelessWidget {
                       CircleAvatar(
                         radius: 40,
                         backgroundColor: Colors.white,
-                        child: Icon(Icons.person, size: 40, color: Colors.grey[400]),
+                        backgroundImage: userStats.avatarUrl != null
+                            ? NetworkImage(userStats.avatarUrl!)
+                            : null,
+                        child: userStats.avatarUrl == null
+                            ? Icon(Icons.person, size: 40, color: Colors.grey[400])
+                            : null,
                       ),
                       const SizedBox(width: 16),
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Player',
-                            style: TextStyle(
+                            userStats.username,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
-                            'player_username',
-                            style: TextStyle(
+                            userStats.userId,
+                            style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 16,
                             ),
@@ -266,7 +278,7 @@ class QuizResultPage extends StatelessWidget {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const QuizListPage()),
-            (route) => false,
+                (route) => false,
           );
         },
         style: ElevatedButton.styleFrom(

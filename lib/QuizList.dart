@@ -1,76 +1,108 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'MainMenu.dart';
 import 'QuizModel.dart';
-import 'QuizDetailPage.dart';
+import 'QuizDetail.dart';
+import 'providers/QuizProviders.dart';
 
 class QuizListPage extends StatelessWidget {
   const QuizListPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final List<QuizModel> quizData = QuizDataStore.getSampleQuizzes();
-
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/list_quiz.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(color: const Color(0xFF4C15A9));
-              },
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.black),
-                        onPressed: () {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(builder: (context) => const MainMenu()),
-                            (route) => false,
+      body: Consumer<QuizProvider>(
+        builder: (context, quizProvider, child) {
+          // Load quizzes if not loaded
+          if (quizProvider.quizzes.isEmpty && !quizProvider.isLoading) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              quizProvider.loadQuizzes();
+            });
+          }
+
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/list_quiz.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(color: const Color(0xFF4C15A9));
+                  },
+                ),
+              ),
+              SafeArea(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.black),
+                            onPressed: () {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (context) => const MainMenu()),
+                                    (route) => false,
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'My Quiz List',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: quizProvider.isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : quizProvider.errorMessage != null
+                          ? Center(
+                        child: Text(
+                          quizProvider.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )
+                          : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        itemCount: quizProvider.quizzes.length,
+                        itemBuilder: (context, index) {
+                          return _buildQuizCard(
+                            context: context,
+                            quiz: quizProvider.quizzes[index],
+                            quizProvider: quizProvider,
                           );
                         },
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'My Quiz List',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    itemCount: quizData.length,
-                    itemBuilder: (context, index) {
-                      return _buildQuizCard(context: context, quiz: quizData[index]);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildQuizCard({required BuildContext context, required QuizModel quiz}) {
+  Widget _buildQuizCard({
+    required BuildContext context,
+    required QuizModel quiz,
+    required QuizProvider quizProvider,
+  }) {
+    final progress = quizProvider.getQuizProgress(quiz.id);
+    final isCompleted = quizProvider.isQuizCompleted(quiz.id);
+
     return GestureDetector(
       onTap: () {
+        quizProvider.setCurrentQuiz(quiz);  // Changed from setCurrentQuiz(quiz.id) to setCurrentQuiz(quiz)
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => QuizDetailPage(quiz: quiz)),
@@ -113,7 +145,7 @@ class QuizListPage extends StatelessWidget {
                     Row(
                       children: [
                         Text(quiz.author, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-                        if (quiz.isCompleted)
+                        if (isCompleted)
                           const Padding(
                             padding: EdgeInsets.only(left: 8.0),
                             child: Icon(Icons.check_circle, color: Colors.green, size: 16),
@@ -127,7 +159,7 @@ class QuizListPage extends StatelessWidget {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: LinearProgressIndicator(
-                              value: quiz.progress,
+                              value: progress,
                               backgroundColor: Colors.grey[300],
                               valueColor: const AlwaysStoppedAnimation(Color(0xFF7B3FF2)),
                               minHeight: 10,

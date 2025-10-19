@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'QuizModel.dart';
 import 'QuizMod.dart';
 import 'ResultScreen.dart';
+import 'providers/QuizProviders.dart';
+import 'providers/UserProviders.dart';
 
 class QuizQuestionPage extends StatefulWidget {
   final QuizModel quiz;
   final Set<String>? selectedMods;
+
   const QuizQuestionPage({Key? key, required this.quiz, this.selectedMods}) : super(key: key);
 
   @override
@@ -18,8 +22,8 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   int currentQuestion = 1;
   late int totalQuestions;
   late double remainingSeconds;
-  final double maxSeconds = 10.0;
-  final double initialSeconds = 5.0;
+  final double maxSeconds = 30.0;
+  final double initialSeconds = 25.0;
   Timer? _timer;
   int correctAnswers = 0;
   int wrongAnswers = 0;
@@ -30,17 +34,15 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   void initState() {
     super.initState();
     totalQuestions = widget.quiz.questionCount;
-    
     final activeMods = widget.selectedMods ?? {};
-    
+
     // Set initial time based on mods
-    remainingSeconds = QuizModsStore.isTimerDisabled(activeMods) 
-        ? double.infinity 
+    remainingSeconds = QuizModsStore.isTimerDisabled(activeMods)
+        ? double.infinity
         : initialSeconds;
 
     // Load questions using quiz ID
     questions = QuizDataStore.getQuestionsForQuiz(widget.quiz.id);
-
     if (questions.length > totalQuestions) {
       questions = questions.sublist(0, totalQuestions);
     }
@@ -52,17 +54,15 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
   void _startTimer() {
     _timer?.cancel();
-    
     final activeMods = widget.selectedMods ?? {};
-    
+
     // Don't start timer if no_time mod is active
     if (QuizModsStore.isTimerDisabled(activeMods)) {
       return;
     }
-    
+
     // Get timer decrement based on mods
     final timerDecrement = QuizModsStore.getTimerDecrement(activeMods);
-    
     _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (mounted && remainingSeconds > 0) {
         setState(() {
@@ -101,15 +101,36 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
   void _navigateToResults() {
     _timer?.cancel();
-    
     final activeMods = widget.selectedMods ?? {};
-    
+
     // Calculate score with mod multiplier
     final score = QuizModsStore.calculateScore(
       correctAnswers: correctAnswers,
       activeMods: activeMods,
     );
-    
+
+    // Update user stats via provider
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final quizProvider = Provider.of<QuizProvider>(context, listen: false);
+
+    // Update quiz progress
+    quizProvider.updateQuizProgress(
+      widget.quiz.id,
+      currentQuestion / totalQuestions,
+    );
+
+    // Mark quiz as completed if passed
+    if (correctAnswers == totalQuestions) {
+      quizProvider.markQuizCompleted(widget.quiz.id);
+    }
+
+    // Update user stats
+    userProvider.updateStatsAfterQuiz(
+      scoreEarned: score,
+      correctAnswersInQuiz: correctAnswers,
+      wrongAnswersInQuiz: wrongAnswers,
+    );
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -135,7 +156,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
     final activeMods = widget.selectedMods ?? {};
     final isCorrect = _selectedOptionIndex == questions[currentQuestion - 1].correctAnswerIndex;
-    
+
     // Use mod logic to handle answer
     final result = QuizModsStore.handleAnswerWithMods(
       isCorrect: isCorrect,
@@ -151,12 +172,12 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
       } else {
         wrongAnswers++;
       }
-      
+
       // Handle extra life
       if (result['useExtraLife'] == true) {
         extraLifeUsed = true;
       }
-      
+
       // Update time
       if (!QuizModsStore.isTimerDisabled(activeMods)) {
         remainingSeconds = QuizModsStore.calculateNewTime(
@@ -209,7 +230,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   Widget build(BuildContext context) {
     final activeMods = widget.selectedMods ?? {};
     final isTimerDisabled = QuizModsStore.isTimerDisabled(activeMods);
-    
+
     return WillPopScope(
       onWillPop: () async {
         _timer?.cancel();
@@ -322,10 +343,10 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
         ],
       );
     }
-    
+
     final double progress = remainingSeconds / maxSeconds;
     final bool isLowTime = remainingSeconds <= 3;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [

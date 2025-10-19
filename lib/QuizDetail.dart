@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'QuizModel.dart';
 import 'QuizMod.dart';
-import 'QuizQuestionPage.dart';
+import 'Quiz.dart';
 
 class QuizDetailPage extends StatefulWidget {
   final QuizModel quiz;
