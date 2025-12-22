@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'providers/UserProviders.dart';
 
 class ProfileMenu extends StatelessWidget {
+  const ProfileMenu({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -10,13 +12,12 @@ class ProfileMenu extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: Colors.black),
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
             onPressed: () => Navigator.pop(context),
           ),
           title: const Text('Profile'),
           backgroundColor: Colors.white,
           elevation: 0,
-          actions: [],
           bottom: const TabBar(
             indicatorColor: Color(0xFF4C15A9),
             labelColor: Color(0xFF4C15A9),
@@ -33,25 +34,26 @@ class ProfileMenu extends StatelessWidget {
             LeaderboardTab(),
           ],
         ),
-        backgroundColor: Color(0xFF4C15A9),
+        backgroundColor: const Color(0xFF4C15A9),
       ),
     );
   }
 }
 
 class ProfileTab extends StatelessWidget {
-  const ProfileTab({super.key});
+  const ProfileTab({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        final userStats = userProvider.currentUser;  // Changed from userStats to currentUser
+        final userStats = userProvider.currentUser;
 
         return SingleChildScrollView(
           child: Column(
             children: [
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
+
               // Profile image
               CircleAvatar(
                 radius: 46,
@@ -68,18 +70,67 @@ class ProfileTab extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                userStats.username,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
-                  color: Colors.white,
+
+              // ✅ Username - Centered with edit button
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      userStats.username,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => _showEditDialog(
+                        context,
+                        'Edit Username',
+                        userStats.username,
+                            (value) {
+                          userProvider.updateUserData({'username': value});
+                        },
+                      ),
+                      child: const Icon(Icons.edit, color: Colors.white, size: 18),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                userStats.userId,
-                style: TextStyle(color: Colors.white70),
+
+              const SizedBox(height: 5),
+
+              // ✅ Display Name - Centered with edit button
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      userStats.displayName,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    GestureDetector(
+                      onTap: () => _showEditDialog(
+                        context,
+                        'Edit Display Name',
+                        userStats.displayName,
+                            (value) {
+                          userProvider.updateUserData({'displayName': value});
+                        },
+                      ),
+                      child: const Icon(Icons.edit, color: Colors.white70, size: 16),
+                    ),
+                  ],
+                ),
               ),
+
+              // Main content card
               Container(
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(16),
@@ -90,39 +141,79 @@ class ProfileTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'About Me',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    // About Me section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'About Me',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          color: const Color(0xFF4C15A9),
+                          onPressed: () => _showEditDialog(
+                            context,
+                            'Edit About Me',
+                            userStats.aboutMe,
+                                (value) {
+                              userProvider.updateUserData({'aboutMe': value});
+                            },
+                            maxLines: 3,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      userStats?.aboutMe.isEmpty ?? true
+                      userStats.aboutMe.isEmpty
                           ? 'No bio available'
-                          : userStats!.aboutMe,
+                          : userStats.aboutMe,
+                      style: TextStyle(
+                        color: userStats.aboutMe.isEmpty
+                            ? Colors.grey
+                            : Colors.black87,
+                      ),
                     ),
+
                     const SizedBox(height: 16),
-                    const Text(
-                      'My Hobbies',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+
+                    // Hobbies section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'My Hobbies',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          color: const Color(0xFF4C15A9),
+                          onPressed: () => _showEditHobbiesDialog(context, userProvider),
+                        ),
+                      ],
                     ),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: userStats?.hobbies.isEmpty ?? true
+                      children: userStats.hobbies.isEmpty
                           ? [_chip('No hobbies added')]
-                          : userStats!.hobbies.map((hobby) => _chip(hobby)).toList(),
+                          : userStats.hobbies.map((hobby) => _chip(hobby)).toList(),
                     ),
+
                     const SizedBox(height: 16),
+
+                    // Statistics section
                     const Text(
                       'Statistics',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
-                    _buildStatRow('Rank', userStats?.rank ?? 'Unranked'),
-                    _buildStatRow('UKBI Level', userStats?.ukbiLevel ?? 'N/A'),
-                    _buildStatRow('Total Score', userStats?.totalScore.toString() ?? '0'),
-                    _buildStatRow('Quizzes Completed', userStats?.quizzesCompleted.toString() ?? '0'),
-                    _buildStatRow('Accuracy', userStats?.accuracyFormatted ?? '0%'),
+                    _buildStatRow('Rank', userStats.rank),
+                    _buildStatRow('UKBI Level', userStats.ukbiLevel),
+                    _buildStatRow('Total Score', userStats.totalScore.toString()),
+                    _buildStatRow('Quizzes Completed', userStats.quizzesCompleted.toString()),
+                    _buildStatRow('Accuracy', userStats.accuracyFormatted),
                   ],
                 ),
               ),
@@ -130,6 +221,146 @@ class ProfileTab extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  // Edit dialog for text fields
+  static void _showEditDialog(
+      BuildContext context,
+      String title,
+      String currentValue,
+      Function(String) onSave, {
+        int maxLines = 1,
+      }) {
+    final controller = TextEditingController(text: currentValue);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: 'Enter new value',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4C15A9),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                onSave(controller.text.trim());
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile updated successfully!')),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Edit hobbies dialog
+  static void _showEditHobbiesDialog(BuildContext context, UserProvider userProvider) {
+    final currentHobbies = List<String>.from(userProvider.currentUser.hobbies);
+    final hobbyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Edit Hobbies'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Add new hobby
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: hobbyController,
+                        decoration: const InputDecoration(
+                          hintText: 'Add hobby',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, color: Color(0xFF4C15A9)),
+                      onPressed: () {
+                        if (hobbyController.text.trim().isNotEmpty) {
+                          setState(() {
+                            currentHobbies.add(hobbyController.text.trim());
+                            hobbyController.clear();
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // List of current hobbies
+                if (currentHobbies.isNotEmpty)
+                  SizedBox(
+                    height: 200,
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: currentHobbies.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          title: Text(currentHobbies[index]),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                currentHobbies.removeAt(index);
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4C15A9),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                userProvider.updateUserData({'hobbies': currentHobbies});
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Hobbies updated successfully!')),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -156,8 +387,31 @@ class ProfileTab extends StatelessWidget {
   );
 }
 
-class LeaderboardTab extends StatelessWidget {
+// ✅ Leaderboard Tab - SIMPLIFIED (no isLoading check)
+class LeaderboardTab extends StatefulWidget {
   const LeaderboardTab({super.key});
+
+  @override
+  State<LeaderboardTab> createState() => _LeaderboardTabState();
+}
+
+class _LeaderboardTabState extends State<LeaderboardTab> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.loadLeaderboard();
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -165,15 +419,46 @@ class LeaderboardTab extends StatelessWidget {
       builder: (context, userProvider, child) {
         final leaderboard = userProvider.leaderboard;
 
-        if (leaderboard.isEmpty) {
+        // Show loading indicator
+        if (_isLoading) {
           return const Center(
-            child: Text(
-              'No leaderboard data available',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+            child: CircularProgressIndicator(
+              color: Colors.white,
             ),
           );
         }
 
+        // Show empty state
+        if (leaderboard.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.leaderboard_outlined,
+                  color: Colors.white54,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No leaderboard data available',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF4C15A9),
+                  ),
+                  onPressed: _loadData,
+                  child: const Text('Reload'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Show leaderboard list
         return Container(
           color: const Color(0xFF4C15A9),
           child: ListView.builder(

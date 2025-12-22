@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../QuizModel.dart';
+import '../services/firebase_quiz_service.dart';
 
 class QuizProvider with ChangeNotifier {
   // Private state variables
@@ -10,6 +11,9 @@ class QuizProvider with ChangeNotifier {
   Map<String, bool> _quizCompletion = {}; // Store completion status by quiz ID
   bool _isLoading = false;
   String? _errorMessage;
+
+  // ✅ Firebase service instance
+  final FirebaseQuizService _firebaseQuizService = FirebaseQuizService();
 
   // Public getters
   List<QuizModel> get quizzes => _quizzes;
@@ -28,28 +32,61 @@ class QuizProvider with ChangeNotifier {
     return _quizCompletion[quizId] ?? false;
   }
 
-  // Load all quizzes from QuizDataStore
-  void loadQuizzes() {
+  // ✅ Load all quizzes from FIREBASE (instead of local data)
+  Future<void> loadQuizzes() async {
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-      _quizzes = QuizDataStore.getSampleQuizzes();
+      // Fetch quizzes from Firebase
+      _quizzes = [];
 
-      // Initialize progress tracking for all quizzes
-      for (var quiz in _quizzes) {
-        if (!_quizProgress.containsKey(quiz.id)) {
-          _quizProgress[quiz.id] = quiz.progress;
-          _quizCompletion[quiz.id] = quiz.isCompleted;
+      // Listen to Firebase stream
+      _firebaseQuizService.getQuizzes().listen((quizList) {
+        _quizzes = quizList;
+
+        // Initialize progress tracking for all quizzes
+        for (var quiz in _quizzes) {
+          if (!_quizProgress.containsKey(quiz.id)) {
+            _quizProgress[quiz.id] = quiz.progress;
+            _quizCompletion[quiz.id] = quiz.isCompleted;
+          }
         }
+
+        _isLoading = false;
+        notifyListeners();
+      }, onError: (e) {
+        _isLoading = false;
+        _errorMessage = 'Failed to load quizzes from Firebase: $e';
+        notifyListeners();
+      });
+
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = 'Failed to load quizzes: $e';
+      notifyListeners();
+    }
+  }
+
+  // ✅ Load single quiz from Firebase
+  Future<void> loadQuizById(String quizId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final quiz = await _firebaseQuizService.getQuizById(quizId);
+      if (quiz != null) {
+        _currentQuiz = quiz;
+      } else {
+        _errorMessage = 'Quiz not found';
       }
 
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      _errorMessage = 'Failed to load quizzes: $e';
+      _errorMessage = 'Failed to load quiz: $e';
       notifyListeners();
     }
   }
@@ -62,11 +99,11 @@ class QuizProvider with ChangeNotifier {
 
   // Set current quiz by ID
   void setCurrentQuizById(String quizId) {
-    final quiz = QuizDataStore.getQuizById(quizId);
-    if (quiz != null) {
-      _currentQuiz = quiz;
-      notifyListeners();
-    }
+    final quiz = _quizzes.firstWhere(
+          (q) => q.id == quizId,
+      orElse: () => _quizzes.first,
+    );
+    setCurrentQuiz(quiz);
   }
 
   // Clear current quiz
@@ -119,26 +156,16 @@ class QuizProvider with ChangeNotifier {
     }
 
     _quizProgress[quizId] = progress;
-
-    // Update the quiz in the list
-    final index = _quizzes.indexWhere((q) => q.id == quizId);
-    if (index != -1) {
-      // Note: QuizModel is immutable, so we'd need to recreate it
-      // For now, we track progress separately
-    }
-
     notifyListeners();
   }
 
   // Mark quiz as completed
   void markQuizCompleted(String quizId, {bool completed = true}) {
     _quizCompletion[quizId] = completed;
-
     // If completed, set progress to 100%
     if (completed) {
       _quizProgress[quizId] = 1.0;
     }
-
     notifyListeners();
   }
 
@@ -147,7 +174,6 @@ class QuizProvider with ChangeNotifier {
     if (totalQuestions > 0) {
       final progress = correctAnswers / totalQuestions;
       updateQuizProgress(quizId, progress);
-
       // Mark as completed if user got all answers correct
       if (correctAnswers == totalQuestions) {
         markQuizCompleted(quizId);
@@ -155,17 +181,17 @@ class QuizProvider with ChangeNotifier {
     }
   }
 
-  // Get questions for current quiz
-  List<QuestionModel> getCurrentQuizQuestions() {
+  // ✅ Get questions for current quiz FROM FIREBASE
+  Future<List<QuestionModel>> getCurrentQuizQuestions() async {
     if (_currentQuiz == null) {
       return [];
     }
-    return QuizDataStore.getQuestionsForQuiz(_currentQuiz!.id);
+    return await _firebaseQuizService.getQuizQuestions(_currentQuiz!.id);
   }
 
-  // Get questions for any quiz by ID
-  List<QuestionModel> getQuestionsForQuiz(String quizId) {
-    return QuizDataStore.getQuestionsForQuiz(quizId);
+  // ✅ Get questions for any quiz by ID FROM FIREBASE
+  Future<List<QuestionModel>> getQuestionsForQuiz(String quizId) async {
+    return await _firebaseQuizService.getQuizQuestions(quizId);
   }
 
   // Get quiz by ID
@@ -200,7 +226,7 @@ class QuizProvider with ChangeNotifier {
     }).toList();
   }
 
-  // Reset all quiz progress (useful for testing or reset feature)
+  // Reset all quiz progress
   void resetAllProgress() {
     _quizProgress.clear();
     _quizCompletion.clear();
@@ -237,20 +263,18 @@ class QuizProvider with ChangeNotifier {
   // Calculate score multiplier based on selected mods
   double getScoreMultiplier() {
     double multiplier = 1.0;
-    
     if (_selectedMods.contains('double_time')) {
-      multiplier += 0.5; // 50% bonus for double time
+      multiplier += 0.5;
     }
     if (_selectedMods.contains('no_time')) {
-      multiplier += 0.0; // No bonus for no time (easier)
+      multiplier += 0.0;
     }
     if (_selectedMods.contains('perfectionist')) {
-      multiplier += 1.0; // 100% bonus for perfectionist mode
+      multiplier += 1.0;
     }
     if (_selectedMods.contains('one_more_try')) {
-      multiplier += 0.25; // 25% bonus for one extra life
+      multiplier += 0.25;
     }
-    
     return multiplier;
   }
 

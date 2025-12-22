@@ -5,7 +5,7 @@ import 'QuizMod.dart';
 import 'QuizList.dart';
 import 'providers/UserProviders.dart';
 
-class QuizResultPage extends StatelessWidget {
+class QuizResultPage extends StatefulWidget {
   final QuizModel quiz;
   final int correctAnswers;
   final int wrongAnswers;
@@ -24,12 +24,56 @@ class QuizResultPage extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<QuizResultPage> createState() => _QuizResultPageState();
+}
+
+class _QuizResultPageState extends State<QuizResultPage> {
+  bool _isUpdatingStats = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Update stats when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateUserStats();
+    });
+  }
+
+  Future<void> _updateUserStats() async {
+    if (_isUpdatingStats) return;
+
+    setState(() {
+      _isUpdatingStats = true;
+    });
+
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final score = widget.finalScore ?? (widget.correctAnswers * 1000);
+
+      // Update stats in Firebase and reload leaderboard
+      await userProvider.updateStatsAfterQuiz(
+        correctAnswersInQuiz: widget.correctAnswers,
+        wrongAnswersInQuiz: widget.wrongAnswers,
+        scoreEarned: score,
+      );
+
+      print('✅ Stats updated successfully!');
+    } catch (e) {
+      print('❌ Error updating stats: $e');
+    } finally {
+      setState(() {
+        _isUpdatingStats = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final int accuracy = totalQuestions > 0
-        ? ((correctAnswers / totalQuestions) * 100).round()
+    final int accuracy = widget.totalQuestions > 0
+        ? ((widget.correctAnswers / widget.totalQuestions) * 100).round()
         : 0;
-    final int score = finalScore ?? (correctAnswers * 1000);
-    final bool passed = correctAnswers == totalQuestions;
+    final int score = widget.finalScore ?? (widget.correctAnswers * 1000);
+    final bool passed = widget.correctAnswers == widget.totalQuestions;
 
     return Scaffold(
       body: Consumer<UserProvider>(
@@ -51,6 +95,14 @@ class QuizResultPage extends StatelessWidget {
                   _buildOverviewContent(score, accuracy, userProvider),
                 ],
               ),
+              // Loading indicator while updating stats
+              if (_isUpdatingStats)
+                Container(
+                  color: Colors.black26,
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                ),
             ],
           );
         },
@@ -95,8 +147,8 @@ class QuizResultPage extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     passed
-                        ? "You've finished ${quiz.title}!"
-                        : "You failed ${quiz.title}",
+                        ? "You've finished ${widget.quiz.title}!"
+                        : "You failed ${widget.quiz.title}",
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white70,
@@ -113,9 +165,9 @@ class QuizResultPage extends StatelessWidget {
   }
 
   Widget _buildOverviewContent(int score, int accuracy, UserProvider userProvider) {
-    final mods = activeMods ?? {};
+    final mods = widget.activeMods ?? {};
     final hasActiveMods = mods.isNotEmpty;
-    final userStats = userProvider.currentUser;  // Changed from userStats to currentUser
+    final userStats = userProvider.currentUser;
 
     return Expanded(
       child: SingleChildScrollView(
@@ -166,7 +218,7 @@ class QuizResultPage extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            userStats.userId,
+                            'Rank: ${userStats.rank}',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 16,
@@ -179,11 +231,13 @@ class QuizResultPage extends StatelessWidget {
                   const SizedBox(height: 24),
                   _buildResultRow('Score', score.toString()),
                   const SizedBox(height: 12),
-                  _buildResultRow('Correct', correctAnswers.toString()),
+                  _buildResultRow('Correct', widget.correctAnswers.toString()),
                   const SizedBox(height: 12),
-                  _buildResultRow('Wrong', wrongAnswers.toString()),
+                  _buildResultRow('Wrong', widget.wrongAnswers.toString()),
                   const SizedBox(height: 12),
                   _buildResultRow('Accuracy', '$accuracy%'),
+                  const SizedBox(height: 12),
+                  _buildResultRow('Total Score', userStats.totalScore.toString()),
                   if (hasActiveMods) ...[
                     const SizedBox(height: 12),
                     _buildModsUsed(mods),
@@ -274,7 +328,9 @@ class QuizResultPage extends StatelessWidget {
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
       child: ElevatedButton(
-        onPressed: () {
+        onPressed: _isUpdatingStats
+            ? null
+            : () {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const QuizListPage()),
@@ -288,7 +344,16 @@ class QuizResultPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: const Text(
+        child: _isUpdatingStats
+            ? const SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+            : const Text(
           'FINISH!',
           style: TextStyle(
             color: Colors.white,

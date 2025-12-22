@@ -36,7 +36,7 @@ class QuizModsStore {
         id: 'perfectionist',
         icon: Icons.percent,
         label: 'PERFECTIONIST',
-        description: 'Accuracy must be 100%',
+        description: 'No mistakes allowed',
       ),
       QuizMod(
         id: 'one_more_try',

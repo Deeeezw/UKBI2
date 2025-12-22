@@ -1,8 +1,28 @@
 import 'package:flutter/material.dart';
-import 'QuizMulti.dart'; // Add this import to access QuizDetailPage
+import 'QuizModel.dart';
+import 'QuizMultiLobby.dart';
+import 'services/firebase_multiplayer_service.dart';
+import 'services/firebase_quiz_service.dart';
+import 'package:provider/provider.dart';
+import 'providers/UserProviders.dart';
 
-class MultiplayerMenu extends StatelessWidget {
-  const MultiplayerMenu({super.key});
+class MultiplayerMenu extends StatefulWidget {
+  final String currentUserId;
+  final String currentUserName;
+
+  const MultiplayerMenu({
+    super.key,
+    required this.currentUserId,
+    required this.currentUserName,
+  });
+
+  @override
+  State<MultiplayerMenu> createState() => _MultiplayerMenuState();
+}
+
+class _MultiplayerMenuState extends State<MultiplayerMenu> {
+  final FirebaseMultiplayerService _multiplayerService = FirebaseMultiplayerService();
+  final FirebaseQuizService _quizService = FirebaseQuizService();
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +40,6 @@ class MultiplayerMenu extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // MODIFIED: Pass context to the header
                   _buildHeader(context),
                   _buildUserInfoCard(),
                   const SizedBox(height: 20),
@@ -36,83 +55,97 @@ class MultiplayerMenu extends StatelessWidget {
     );
   }
 
-  // MODIFIED: Added a back button and a Row
   Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 24, 8),
-      child: Row(
-        children: [
-          // Back Button
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black, size: 28),
-            onPressed: () {
-              Navigator.pop(context);
-            },
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        final user = userProvider.currentUserOrNull;
+        final name = user?.username ?? widget.currentUserName;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 24, 8),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back,
+                    color: Colors.black, size: 28),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Welcome, $name',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          // Welcome Text
-          const Text(
-            'Welcome,',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
+
   Widget _buildUserInfoCard() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Wowo',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Performance',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 16),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _InfoItem(label: 'Rank', value: '#1825'),
-              _InfoItem(label: 'UKBI', value: 'Madya'),
-              _InfoItem(label: 'Accuracy', value: '94.11%'),
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        final user = userProvider.currentUserOrNull;
+
+        final name = user?.username ?? widget.currentUserName;
+        final rank = user?.rank ?? 'Unranked';
+        final ukbi = user?.ukbiLevel ?? 'Pemula';
+        final accuracy =
+        user != null ? '${user.accuracy.toStringAsFixed(2)}%' : '0.00%';
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
             ],
           ),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Performance',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _InfoItem(label: 'Rank', value: rank),
+                  _InfoItem(label: 'UKBI', value: ukbi),
+                  _InfoItem(label: 'Accuracy', value: accuracy),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
+
 
   Widget _buildSearchBar() {
     return Padding(
@@ -142,7 +175,7 @@ class MultiplayerMenu extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Quiz List',
+                'Available Rooms',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -150,12 +183,12 @@ class MultiplayerMenu extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () => _showCreateRoomDialog(context),
                 child: const Text(
-                  'See All',
+                  'Create Room',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey,
+                    color: Color(0xFF4C15A9),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -165,75 +198,71 @@ class MultiplayerMenu extends StatelessWidget {
         ),
         SizedBox(
           height: 280,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(left: 24, right: 12),
-            children: [
-              _buildQuizCard(
-                context: context,
-                imagePath: 'assets/random_quiz1.png',
-                title: 'Diksi',
-                author: 'By Quiz Maniac',
-                attendingPlayers: 3,
-                maxPlayers: 10,
-                quizModel: QuizModel(
-                  title: 'Diksi',
-                  author: 'By Quiz Maniac',
-                  progress: 1.0,
-                  difficulty: 'Hard',
-                  isCompleted: true,
-                  description: 'Kenali diksi dan artinya.',
-                  duration: 45,
-                  questionCount: 10,
-                  rating: 4.9,
-                  imagePath: 'assets/gambar_randomquiz.png',
-                ),
-              ),
-              _buildQuizCard(
-                context: context,
-                imagePath: 'assets/random_quiz2.png',
-                title: 'Majas dan Persatiran',
-                author: 'By Government Holler',
-                attendingPlayers: 8,
-                maxPlayers: 10,
-                quizModel: QuizModel(
-                  title: 'Majas dan Persatiran',
-                  author: 'By Government Holler',
-                  progress: 0.5,
-                  difficulty: 'Normal',
-                  isCompleted: false,
-                  description: 'Quiz menuju penyatir professional.',
-                  duration: 25,
-                  questionCount: 5,
-                  rating: 4.5,
-                  imagePath: 'assets/gambar_randomquiz.png',
-                ),
-              ),
-            ],
+          child: StreamBuilder<List<MultiplayerRoom>>(
+            stream: _multiplayerService.getAvailableRooms(),
+            builder: (context, roomSnapshot) {
+              if (roomSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (!roomSnapshot.hasData || roomSnapshot.data!.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.inbox, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No rooms available',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => _showCreateRoomDialog(context),
+                        child: const Text('Create a new room'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(left: 24, right: 12),
+                itemCount: roomSnapshot.data!.length,
+                itemBuilder: (context, index) {
+                  final room = roomSnapshot.data![index];
+                  return FutureBuilder<QuizModel?>(
+                    future: _quizService.getQuizById(room.quizId),
+                    builder: (context, quizSnapshot) {
+                      if (!quizSnapshot.hasData) {
+                        return const SizedBox(width: 220, child: Center(child: CircularProgressIndicator()));
+                      }
+
+                      final quiz = quizSnapshot.data!;
+                      return _buildRoomCard(
+                        context: context,
+                        room: room,
+                        quiz: quiz,
+                      );
+                    },
+                  );
+                },
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildQuizCard({
+  Widget _buildRoomCard({
     required BuildContext context,
-    required String imagePath,
-    required String title,
-    required String author,
-    required int attendingPlayers,
-    required int maxPlayers,
-    required QuizModel quizModel,
+    required MultiplayerRoom room,
+    required QuizModel quiz,
   }) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => QuizDetailPage(quiz: quizModel),
-          ),
-        );
-      },
+      onTap: () => _joinRoom(context, room, quiz),
       child: Container(
         width: 220,
         margin: const EdgeInsets.only(right: 12),
@@ -249,31 +278,46 @@ class MultiplayerMenu extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.asset(
-                    imagePath,
+                    quiz.imagePath,
                     height: 120,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 120,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.quiz, size: 50),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  quiz.title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  author,
+                  'Host: ${room.hostName}',
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
                 const Spacer(),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4C15A9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        quiz.difficulty,
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
                     Text(
-                      '$attendingPlayers / $maxPlayers',
+                      '${room.currentPlayers} / ${room.maxPlayers}',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -289,24 +333,177 @@ class MultiplayerMenu extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _joinRoom(BuildContext context, MultiplayerRoom room, QuizModel quiz) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    bool success = await _multiplayerService.joinRoom(
+      roomId: room.id,
+      playerId: widget.currentUserId,
+      playerName: widget.currentUserName,
+    );
+
+    Navigator.pop(context); // Close loading
+
+    if (success) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => QuizMultiLobby(
+            quiz: quiz,
+            roomId: room.id,
+            currentUserId: widget.currentUserId,
+            currentUserName: widget.currentUserName,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to join room')),
+      );
+    }
+  }
+
+  Future _showCreateRoomDialog(BuildContext context) async {
+    // Get list of quizzes
+    final quizzes = await _quizService.getQuizzes().first;
+    if (quizzes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No quizzes available')),
+      );
+      return;
+    }
+
+    QuizModel? selectedQuiz = quizzes.first;
+    int maxPlayers = 10;
+
+    // Save parent context from the state
+    final parentContext = this.context;
+
+    showDialog(
+      context: parentContext,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create Room'),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<QuizModel>(
+                  value: selectedQuiz,
+                  decoration: const InputDecoration(labelText: 'Select Quiz'),
+                  items: quizzes.map((quiz) {
+                    return DropdownMenuItem(
+                      value: quiz,
+                      child: Text(quiz.title),
+                    );
+                  }).toList(),
+                  onChanged: (quiz) {
+                    setState(() => selectedQuiz = quiz);
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('Max players:'),
+                    const SizedBox(width: 12),
+                    DropdownButton<int>(
+                      value: maxPlayers,
+                      items: const [2, 4, 6, 8, 10].map((v) {
+                        return DropdownMenuItem(
+                          value: v,
+                          child: Text(v.toString()),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => maxPlayers = value);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (selectedQuiz == null) return;
+
+              // Close the settings dialog
+              Navigator.of(dialogContext).pop();
+
+              // Show loading using parentContext
+              showDialog(
+                context: parentContext,
+                barrierDismissible: false,
+                builder: (_) =>
+                const Center(child: CircularProgressIndicator()),
+              );
+
+              final roomId = await _multiplayerService.createRoom(
+                quizId: selectedQuiz!.id,
+                hostId: widget.currentUserId,
+                hostName: widget.currentUserName,
+                maxPlayers: maxPlayers,
+              );
+
+              // Close loading dialog
+              if (Navigator.of(parentContext).canPop()) {
+                Navigator.of(parentContext).pop();
+              }
+
+              if (!mounted) return;
+
+              if (roomId != null) {
+                Navigator.push(
+                  parentContext,
+                  MaterialPageRoute(
+                    builder: (_) => QuizMultiLobby(
+                      quiz: selectedQuiz!,
+                      roomId: roomId,
+                      currentUserId: widget.currentUserId,
+                      currentUserName: widget.currentUserName,
+                      isHost: true,
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  const SnackBar(content: Text('Failed to create room')),
+                );
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _InfoItem extends StatelessWidget {
   final String label;
   final String value;
+
   const _InfoItem({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 14,
-          ),
-        ),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
         const SizedBox(height: 4),
         Text(
           value,

@@ -7,6 +7,7 @@ import 'ProfileMenu.dart';
 import 'MultiplayerMenu.dart';
 import 'QuizList.dart';
 import 'providers/UserProviders.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MainMenu extends StatelessWidget {
   const MainMenu({super.key});
@@ -84,7 +85,14 @@ class MainMenu extends StatelessWidget {
   Widget _buildProfilePicture(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        final user = userProvider.currentUser;
+        final user = userProvider.currentUserOrNull;
+        if (user == null) {
+          return const CircleAvatar(
+            radius: 45,
+            backgroundColor: Colors.grey,
+            child: Icon(Icons.person, size: 45, color: Colors.white),
+          );
+        }
 
         return GestureDetector(
           onTap: () {
@@ -117,7 +125,8 @@ class MainMenu extends StatelessWidget {
                 user.avatarUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  return const Icon(Icons.person, size: 45, color: Colors.grey);
+                  return const Icon(Icons.person,
+                      size: 45, color: Colors.grey);
                 },
               ),
             )
@@ -135,7 +144,10 @@ class MainMenu extends StatelessWidget {
   Widget _buildUserNameSection(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        final user = userProvider.currentUser;
+        final user = userProvider.currentUserOrNull;
+        if (user == null) {
+          return const SizedBox.shrink();
+        }
 
         return GestureDetector(
           onTap: () {
@@ -150,12 +162,14 @@ class MainMenu extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  user.username,
+                  user.username.split(' ').first,  // Show only "Paladin"
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 35,
+                    fontSize: 28,  // Reduced from 35
                     fontWeight: FontWeight.bold,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'UKBI: ${user.ukbiLevel}',
@@ -175,7 +189,10 @@ class MainMenu extends StatelessWidget {
   Widget _buildPerformanceStats(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        final user = userProvider.currentUser;
+        final user = userProvider.currentUserOrNull;
+        if (user == null) {
+          return const SizedBox.shrink();
+        }
 
         return GestureDetector(
           onTap: () {
@@ -197,9 +214,10 @@ class MainMenu extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              _buildStatRow('Rank', '#${user.rank}'),
+              _buildStatRow('Rank', user.rank),
               const SizedBox(height: 5),
-              _buildStatRow('Accuracy', '${user.accuracy.toStringAsFixed(2)}%'),
+              _buildStatRow(
+                  'Accuracy', '${user.accuracy.toStringAsFixed(2)}%'),
               const SizedBox(height: 5),
               _buildStatRow('Quiz Finished', '${user.quizzesCompleted}'),
             ],
@@ -315,13 +333,59 @@ class MainMenu extends StatelessWidget {
             icon: Icons.people,
             label: 'Multiplayer',
             hasWhiteCircle: true,
-            onTap: () {
+            onTap: () async {
+              final userProvider = context.read<UserProvider>();
+              var user = userProvider.currentUserOrNull;
+
+              // ✅ If user data not loaded, try loading it
+              if (user == null) {
+                print('⚠️ User data not loaded, attempting to load...');
+
+                final currentUser = FirebaseAuth.instance.currentUser;
+                if (currentUser == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please login first')),
+                  );
+                  return;
+                }
+
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator()),
+                );
+
+                try {
+                  await userProvider.loadUserData(userId: currentUser.uid);
+                  Navigator.pop(context); // Close loading dialog
+
+                  user = userProvider.currentUserOrNull;
+                  if (user == null) {
+                    throw Exception('Failed to load user data');
+                  }
+                } catch (e) {
+                  Navigator.pop(context); // Close loading dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error loading user data: $e')),
+                  );
+                  return;
+                }
+              }
+
+              // ✅ Now user is guaranteed to be loaded
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const MultiplayerMenu()),
+                MaterialPageRoute(
+                  builder: (context) => MultiplayerMenu(
+                    currentUserId: user!.userId,
+                    currentUserName: user.username,
+                  ),
+                ),
               );
             },
           ),
+
         ],
       ),
     );

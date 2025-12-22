@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "482188310443",
+    "project_id": "quiroukbi",
+    "storage_bucket": "quiroukbi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:482188310443:android:bc7e8989ebf131fc4e44ee",
+        "android_client_info": {
+          "package_name": "com.deswara.quiro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "482188310443-qdl2fcfjmodivh6pqge1jcfq65bekor8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.deswara.quiro",
+            "certificate_hash": "15de1ed144d27c4f358cfb1964f59fd70b5bbd55"
+          }
+        },
+        {
+          "client_id": "482188310443-9b2preleajpl9pm1p8v5s3kg3mpt225b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1Bk6eZFeZU4HbT6PZEdzJNu1p--geTuY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "482188310443-9b2preleajpl9pm1p8v5s3kg3mpt225b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

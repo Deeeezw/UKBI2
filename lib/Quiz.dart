@@ -17,7 +17,7 @@ class QuizQuestionPage extends StatefulWidget {
   State<QuizQuestionPage> createState() => _QuizQuestionPageState();
 }
 
-class _QuizQuestionPageState extends State<QuizQuestionPage> {
+class _QuizQuestionPageState extends State<QuizQuestionPage> with SingleTickerProviderStateMixin {
   int _selectedOptionIndex = -1;
   int currentQuestion = 1;
   late int totalQuestions;
@@ -27,8 +27,18 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   Timer? _timer;
   int correctAnswers = 0;
   int wrongAnswers = 0;
-  late List<QuestionModel> questions;
+
+  // ✅ Changed to nullable and added loading state
+  List<QuestionModel>? questions;
+  bool _isLoadingQuestions = true;
+
   bool extraLifeUsed = false;
+
+  // Animation states
+  bool _showAnswer = false;
+  bool _isAnswerCorrect = false;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -41,15 +51,66 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
         ? double.infinity
         : initialSeconds;
 
-    // Load questions using quiz ID
-    questions = QuizDataStore.getQuestionsForQuiz(widget.quiz.id);
-    if (questions.length > totalQuestions) {
-      questions = questions.sublist(0, totalQuestions);
-    }
+    // ✅ Load questions from Firebase
+    _loadQuestionsFromFirebase();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Initialize animation controller
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  // ✅ NEW: Load questions from Firebase
+  Future<void> _loadQuestionsFromFirebase() async {
+    final quizProvider = Provider.of<QuizProvider>(context, listen: false);
+
+    try {
+      print('🔥 Loading questions for quiz: ${widget.quiz.id}');
+
+      final loadedQuestions = await quizProvider.getQuestionsForQuiz(widget.quiz.id);
+
+      if (loadedQuestions.isEmpty) {
+        print('⚠️ No questions found in Firebase, using local fallback');
+        setState(() {
+          questions = QuizDataStore.getQuestionsForQuiz(widget.quiz.id);
+          if (questions!.length > totalQuestions) {
+            questions = questions!.sublist(0, totalQuestions);
+          }
+          _isLoadingQuestions = false;
+        });
+        _startTimer();
+        return;
+      }
+
+      print('✅ Loaded ${loadedQuestions.length} questions from Firebase');
+
+      setState(() {
+        questions = loadedQuestions;
+        if (questions!.length > totalQuestions) {
+          questions = questions!.sublist(0, totalQuestions);
+        }
+        _isLoadingQuestions = false;
+      });
+
+      // Start timer after questions are loaded
       _startTimer();
-    });
+    } catch (e) {
+      print('❌ Error loading questions: $e');
+      // Fallback to local data
+      setState(() {
+        questions = QuizDataStore.getQuestionsForQuiz(widget.quiz.id);
+        if (questions!.length > totalQuestions) {
+          questions = questions!.sublist(0, totalQuestions);
+        }
+        _isLoadingQuestions = false;
+      });
+      _startTimer();
+    }
   }
 
   void _startTimer() {
@@ -63,6 +124,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
 
     // Get timer decrement based on mods
     final timerDecrement = QuizModsStore.getTimerDecrement(activeMods);
+
     _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (mounted && remainingSeconds > 0) {
         setState(() {
@@ -110,7 +172,6 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
     );
 
     // Update user stats via provider
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
 
     // Update quiz progress
@@ -123,13 +184,6 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
     if (correctAnswers == totalQuestions) {
       quizProvider.markQuizCompleted(widget.quiz.id);
     }
-
-    // Update user stats
-    userProvider.updateStatsAfterQuiz(
-      scoreEarned: score,
-      correctAnswersInQuiz: correctAnswers,
-      wrongAnswersInQuiz: wrongAnswers,
-    );
 
     Navigator.pushReplacement(
       context,
@@ -146,7 +200,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
     );
   }
 
-  void _handleAnswer() {
+  void _handleAnswer() async {
     if (_selectedOptionIndex == -1) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select an option first!')),
@@ -154,8 +208,21 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
       return;
     }
 
+    // Pause timer during answer reveal
+    _timer?.cancel();
     final activeMods = widget.selectedMods ?? {};
-    final isCorrect = _selectedOptionIndex == questions[currentQuestion - 1].correctAnswerIndex;
+    final isCorrect = _selectedOptionIndex == questions![currentQuestion - 1].correctAnswerIndex;
+
+    // Show answer animation
+    setState(() {
+      _showAnswer = true;
+      _isAnswerCorrect = isCorrect;
+    });
+
+    // Play scale animation
+    _animationController.forward().then((_) {
+      _animationController.reverse();
+    });
 
     // Use mod logic to handle answer
     final result = QuizModsStore.handleAnswerWithMods(
@@ -188,41 +255,39 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
       }
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['message']),
-        backgroundColor: isCorrect ? Colors.green : Colors.red,
-        duration: const Duration(milliseconds: 800),
-      ),
-    );
+    // Wait for animation to complete
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
 
     // Check if quiz should end
     if (result['endQuiz'] == true) {
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (!mounted) return;
-        _timer?.cancel();
-        _navigateToResults();
-      });
+      _navigateToResults();
       return;
     }
 
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      if (currentQuestion < totalQuestions && (remainingSeconds > 0 || QuizModsStore.isTimerDisabled(activeMods))) {
-        setState(() {
-          currentQuestion++;
-          _selectedOptionIndex = -1;
-        });
-      } else {
-        _timer?.cancel();
-        _navigateToResults();
+    // Move to next question or end quiz
+    if (currentQuestion < totalQuestions &&
+        (remainingSeconds > 0 || QuizModsStore.isTimerDisabled(activeMods))) {
+      setState(() {
+        currentQuestion++;
+        _selectedOptionIndex = -1;
+        _showAnswer = false;
+        _isAnswerCorrect = false;
+      });
+
+      // Resume timer for next question
+      if (!QuizModsStore.isTimerDisabled(activeMods)) {
+        _startTimer();
       }
-    });
+    } else {
+      _navigateToResults();
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -230,6 +295,32 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   Widget build(BuildContext context) {
     final activeMods = widget.selectedMods ?? {};
     final isTimerDisabled = QuizModsStore.isTimerDisabled(activeMods);
+
+    // ✅ Show loading screen while questions are being fetched
+    if (_isLoadingQuestions || questions == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              CircularProgressIndicator(
+                color: Color(0xFF4C15A9),
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Loading questions from Firebase...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF4C15A9),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return WillPopScope(
       onWillPop: () async {
@@ -383,7 +474,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        questions[currentQuestion - 1].question,
+        questions![currentQuestion - 1].question,
         textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 20,
@@ -395,35 +486,91 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
   }
 
   Widget _buildOptionsList() {
-    final options = questions[currentQuestion - 1].shuffledOptions;
+    final options = questions![currentQuestion - 1].shuffledOptions;
+
     return Column(
       children: List.generate(options.length, (index) {
         final isSelected = _selectedOptionIndex == index;
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              _selectedOptionIndex = index;
-            });
-          },
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 15),
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? Colors.deepPurple.shade700
-                  : const Color(0xFF4C15A9),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Text(
-              options[index],
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
+        final showFeedback = _showAnswer && isSelected;
+
+        // Determine color based on answer state
+        Color backgroundColor;
+        Color borderColor = Colors.transparent;
+
+        if (showFeedback) {
+          backgroundColor = _isAnswerCorrect
+              ? Colors.green.shade600
+              : Colors.red.shade600;
+          borderColor = _isAnswerCorrect
+              ? Colors.green.shade300
+              : Colors.red.shade300;
+        } else if (isSelected) {
+          backgroundColor = Colors.deepPurple.shade700;
+        } else {
+          backgroundColor = const Color(0xFF4C15A9);
+        }
+
+        return AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: showFeedback ? _scaleAnimation.value : 1.0,
+              child: GestureDetector(
+                onTap: _showAnswer ? null : () {
+                  setState(() {
+                    _selectedOptionIndex = index;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  margin: const EdgeInsets.only(bottom: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: borderColor,
+                      width: showFeedback ? 3 : 0,
+                    ),
+                    boxShadow: showFeedback ? [
+                      BoxShadow(
+                        color: backgroundColor.withOpacity(0.5),
+                        blurRadius: 15,
+                        spreadRadius: 2,
+                      ),
+                    ] : [],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (showFeedback)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: Icon(
+                            _isAnswerCorrect ? Icons.check_circle : Icons.cancel,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      Flexible(
+                        child: Text(
+                          options[index],
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: showFeedback ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       }),
     );
@@ -435,7 +582,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
       children: [
         Expanded(
           child: ElevatedButton(
-            onPressed: () {
+            onPressed: _showAnswer ? null : () {
               _timer?.cancel();
               Navigator.of(context).pop();
             },
@@ -456,7 +603,7 @@ class _QuizQuestionPageState extends State<QuizQuestionPage> {
         const SizedBox(width: 20),
         Expanded(
           child: ElevatedButton(
-            onPressed: _handleAnswer,
+            onPressed: _showAnswer ? null : _handleAnswer,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4C15A9),
               foregroundColor: Colors.white,

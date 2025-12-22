@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'MainMenu.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/firebase_auth_service.dart';
+import 'package:provider/provider.dart';
+import 'providers/UserProviders.dart';
 
-
-// ============================================================================
-// MAIN LOGIN PAGE FILE
-// This file contains all authentication screens:
-// 1. Welcome Screen (Hal6)
-// 2. Sign In Page (Hal7)
-// 3. Reset Password (Hal8)
-// 4. Password Reset Success (Hal9)
-// 5. Sign Up Page (Hal10)
-// 6. Sign Up Success (Hal11)
-// ============================================================================
 
 void main() {
   runApp(const LoginApp());
@@ -170,6 +164,10 @@ class SignInPage extends StatefulWidget {
 
 class _SignInPageState extends State<SignInPage> {
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -178,6 +176,54 @@ class _SignInPageState extends State<SignInPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSignIn() async {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      setState(() => _errorMessage = 'Email dan password harus diisi');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final user = await _authService.signInWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (user != null && mounted) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true);
+        await prefs.setString('userEmail', _emailController.text.trim());
+
+        final uid = FirebaseAuth.instance.currentUser!.uid;
+        await context.read<UserProvider>().loadUserData(userId: uid);
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const MainMenu()),
+              (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      // pakai helper mapAuthError kalau mau pesan lebih spesifik
+      setState(() {
+        _errorMessage = _authService.handleAuthException(e);
+        _isLoading = false;
+      });
+    } catch (e, st) {
+      debugPrint('SIGNIN ERROR OBJECT: $e');
+      debugPrint('SIGNIN STACKTRACE:\n$st');
+      setState(() {
+        _errorMessage = 'Terjadi kesalahan saat masuk. Coba lagi nanti.';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -193,9 +239,7 @@ class _SignInPageState extends State<SignInPage> {
               const SizedBox(height: 40),
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: () => Navigator.pop(context),
               ),
               const Center(
                 child: Text(
@@ -234,8 +278,10 @@ class _SignInPageState extends State<SignInPage> {
                   hintText: "example@gmail.com",
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
@@ -270,8 +316,10 @@ class _SignInPageState extends State<SignInPage> {
                   hintText: "Enter your password",
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
@@ -330,52 +378,47 @@ class _SignInPageState extends State<SignInPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              if (_errorMessage != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: Colors.red.shade900,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    if (_emailController.text.isEmpty ||
-                        _passwordController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Please fill in all fields"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    } else {
-                      // Save login status
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setBool('isLoggedIn', true);
-                      await prefs.setString('userEmail', _emailController.text);
-
-                      // Show success message
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Sign In Successful!"),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-
-                      // Navigate to MainMenu after successful login
-                      Future.delayed(const Duration(milliseconds: 500), () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const MainMenu()),
-                              (route) => false,
-                        );
-                      });
-                    }
-                  },
+                  onPressed: _isLoading ? null : _handleSignIn,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7B3FF2),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text(
                     "SIGN IN",
                     style: TextStyle(
                       fontSize: 15,
@@ -389,10 +432,14 @@ class _SignInPageState extends State<SignInPage> {
               Row(
                 children: [
                   Expanded(
-                      child:
-                      Divider(color: Colors.grey.shade300, thickness: 1)),
+                    child: Divider(
+                      color: Colors.grey.shade300,
+                      thickness: 1,
+                    ),
+                  ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
                       "Or Sign in with",
                       style: TextStyle(
@@ -402,20 +449,91 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                   ),
                   Expanded(
-                      child:
-                      Divider(color: Colors.grey.shade300, thickness: 1)),
+                    child: Divider(
+                      color: Colors.grey.shade300,
+                      thickness: 1,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () {
-                    // Implement Google Sign In
+                  onPressed: () async {
+                    setState(() {
+                      _isLoading = true;
+                      _errorMessage = null;
+                    });
+
+                    try {
+                      // 1. Sign in with Google (Firebase)
+                      final user = await _authService.signInWithGoogle();
+
+                      if (user == null) {
+                        // user cancelled Google flow
+                        if (mounted) {
+                          setState(() => _errorMessage = 'Google sign-in was cancelled');
+                        }
+                        return;
+                      }
+
+                      // 2. Persist login state locally
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('isLoggedIn', true);
+                      await prefs.setString('userEmail', user.email ?? '');
+
+                      final uid = user.uid;
+
+                      // 3. Ensure Firestore users/{uid} exists
+                      final usersRef = FirebaseFirestore.instance.collection('users');
+                      final doc = await usersRef.doc(uid).get();
+
+                      if (!doc.exists) {
+                        await usersRef.doc(uid).set({
+                          'username': user.displayName ?? 'Player',
+                          'rank': 'Unranked',
+                          'ukbiLevel': 'Pemula',
+                          'accuracy': 0.0,
+                          'totalScore': 0,
+                          'quizzesCompleted': 0,
+                          'correctAnswers': 0,
+                          'wrongAnswers': 0,
+                          'aboutMe': '',
+                          'hobbies': [],
+                          'avatarUrl': user.photoURL,
+                        });
+                      }
+
+                      // 4. Load into UserProvider
+                      await context.read<UserProvider>().loadUserData(userId: uid);
+
+                      // 5. Go to MainMenu
+                      if (mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const MainMenu()),
+                              (route) => false,
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() => _errorMessage = 'Google sign-in failed: $e');
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                      }
+                    }
                   },
+
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.grey.shade300, width: 1),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(
+                      color: Colors.grey.shade300,
+                      width: 1,
+                    ),
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -463,7 +581,8 @@ class _SignInPageState extends State<SignInPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const SignUpPage()),
+                            builder: (context) => const SignUpPage(),
+                          ),
                         );
                       },
                       child: const Text(
@@ -833,6 +952,11 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isFormValid = false;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -857,6 +981,64 @@ class _SignUpPageState extends State<SignUpPage> {
     });
   }
 
+  Future<void> _handleSignUp() async {
+    // Validasi lokal
+    if (_passwordController.text.length < 6) {
+      setState(() {
+        _errorMessage = 'Password minimal 6 karakter';
+      });
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      setState(() {
+        _errorMessage = 'Password tidak cocok';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final user = await _authService.signUpWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (user != null && mounted) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'username': _nameController.text.trim()});
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SignUpSuccessPage(),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = _authService.handleAuthException(e);
+        _isLoading = false;
+      });
+    } catch (e, st) {
+      // LOG error untuk melacak sumber Pigeon di console
+      debugPrint('SIGNUP ERROR OBJECT: $e');
+      debugPrint('SIGNUP STACKTRACE:\n$st');
+
+      setState(() {
+        _errorMessage =
+        'Terjadi kesalahan saat mendaftar. Coba lagi nanti.';
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -869,6 +1051,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     const Color primaryPurple = Color(0xFF7B3FF2);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -880,9 +1063,7 @@ class _SignUpPageState extends State<SignUpPage> {
               const SizedBox(height: 30),
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: () => Navigator.pop(context),
               ),
               const SizedBox(height: 10),
               const Center(
@@ -922,8 +1103,10 @@ class _SignUpPageState extends State<SignUpPage> {
                   hintText: "Your Name Here",
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
@@ -958,8 +1141,10 @@ class _SignUpPageState extends State<SignUpPage> {
                   hintText: "Your Email Here",
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
@@ -994,8 +1179,10 @@ class _SignUpPageState extends State<SignUpPage> {
                   hintText: "****************",
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
@@ -1044,8 +1231,10 @@ class _SignUpPageState extends State<SignUpPage> {
                   hintText: "****************",
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
@@ -1078,31 +1267,51 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
+              if (_errorMessage != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: Colors.red.shade900,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isFormValid
-                      ? () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) =>
-                          const SignUpSuccessPage()),
-                    );
-                  }
-                      : null,
+                  onPressed: _isLoading || !_isFormValid
+                      ? null
+                      : _handleSignUp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryPurple,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     disabledBackgroundColor: Colors.grey.shade300,
                     disabledForegroundColor: Colors.white70,
                   ),
-                  child: const Text(
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text(
                     "SIGN UP",
                     style: TextStyle(
                       fontSize: 15,
@@ -1115,10 +1324,14 @@ class _SignUpPageState extends State<SignUpPage> {
               Row(
                 children: [
                   Expanded(
-                      child:
-                      Divider(color: Colors.grey.shade300, thickness: 1)),
+                    child: Divider(
+                      color: Colors.grey.shade300,
+                      thickness: 1,
+                    ),
+                  ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
                       "Or Sign Up with",
                       style: TextStyle(
@@ -1128,20 +1341,91 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                   ),
                   Expanded(
-                      child:
-                      Divider(color: Colors.grey.shade300, thickness: 1)),
+                    child: Divider(
+                      color: Colors.grey.shade300,
+                      thickness: 1,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () {
-                    // Implement Google Sign Up
+                  onPressed: () async {
+                    setState(() {
+                      _isLoading = true;
+                      _errorMessage = null;
+                    });
+
+                    try {
+                      // 1. Sign in with Google (Firebase)
+                      final user = await _authService.signInWithGoogle();
+
+                      if (user == null) {
+                        // user cancelled Google flow
+                        if (mounted) {
+                          setState(() => _errorMessage = 'Google sign-in was cancelled');
+                        }
+                        return;
+                      }
+
+                      // 2. Persist login state locally
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('isLoggedIn', true);
+                      await prefs.setString('userEmail', user.email ?? '');
+
+                      final uid = user.uid;
+
+                      // 3. Ensure Firestore users/{uid} exists
+                      final usersRef = FirebaseFirestore.instance.collection('users');
+                      final doc = await usersRef.doc(uid).get();
+
+                      if (!doc.exists) {
+                        await usersRef.doc(uid).set({
+                          'username': user.displayName ?? 'Player',
+                          'rank': 'Unranked',
+                          'ukbiLevel': 'Pemula',
+                          'accuracy': 0.0,
+                          'totalScore': 0,
+                          'quizzesCompleted': 0,
+                          'correctAnswers': 0,
+                          'wrongAnswers': 0,
+                          'aboutMe': '',
+                          'hobbies': [],
+                          'avatarUrl': user.photoURL,
+                        });
+                      }
+
+                      // 4. Load into UserProvider
+                      await context.read<UserProvider>().loadUserData(userId: uid);
+
+                      // 5. Go to MainMenu
+                      if (mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const MainMenu()),
+                              (route) => false,
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() => _errorMessage = 'Google sign-in failed: $e');
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                      }
+                    }
                   },
+
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.grey.shade300, width: 1),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(
+                      color: Colors.grey.shade300,
+                      width: 1,
+                    ),
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1189,7 +1473,8 @@ class _SignUpPageState extends State<SignUpPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const SignInPage()),
+                            builder: (context) => const SignInPage(),
+                          ),
                         );
                       },
                       child: const Text(
@@ -1238,10 +1523,7 @@ class SignUpSuccessPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: primaryPurple.withOpacity(0.7),
-                  border: Border.all(
-                    color: primaryPurple,
-                    width: 15,
-                  ),
+                  border: Border.all(color: primaryPurple, width: 15),
                 ),
                 child: Center(
                   child: Icon(
@@ -1267,15 +1549,14 @@ class SignUpSuccessPage extends StatelessWidget {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () async {
-                    // Save login status to keep the user logged in
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.setBool('isLoggedIn', true);
 
-                    // Navigate to MainMenu and remove all previous routes
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const MainMenu()),
+                        builder: (context) => const MainMenu(),
+                      ),
                           (route) => false,
                     );
                   },
