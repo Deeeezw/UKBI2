@@ -24,9 +24,7 @@ class LoginApp extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// 1. WELCOME SCREEN (Initial Landing Page)
-// ============================================================================
+
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({Key? key}) : super(key: key);
 
@@ -35,7 +33,7 @@ class WelcomeScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Background image
+          
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -44,11 +42,11 @@ class WelcomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          // Overlay for better text readability
+          
           Container(
             color: Colors.black.withOpacity(0.4),
           ),
-          // Main content
+          
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
@@ -80,7 +78,7 @@ class WelcomeScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Sign In Button
+                      
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
@@ -110,7 +108,7 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // Sign Up Button
+                      
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
@@ -152,9 +150,7 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// 2. SIGN IN PAGE
-// ============================================================================
+
 class SignInPage extends StatefulWidget {
   const SignInPage({Key? key}) : super(key: key);
 
@@ -211,7 +207,7 @@ class _SignInPageState extends State<SignInPage> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      // pakai helper mapAuthError kalau mau pesan lebih spesifik
+      
       setState(() {
         _errorMessage = _authService.handleAuthException(e);
         _isLoading = false;
@@ -467,25 +463,25 @@ class _SignInPageState extends State<SignInPage> {
                     });
 
                     try {
-                      // 1. Sign in with Google (Firebase)
+                      
                       final user = await _authService.signInWithGoogle();
 
                       if (user == null) {
-                        // user cancelled Google flow
+                       
                         if (mounted) {
                           setState(() => _errorMessage = 'Google sign-in was cancelled');
                         }
                         return;
                       }
 
-                      // 2. Persist login state locally
+                      
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setBool('isLoggedIn', true);
                       await prefs.setString('userEmail', user.email ?? '');
 
                       final uid = user.uid;
 
-                      // 3. Ensure Firestore users/{uid} exists
+                      
                       final usersRef = FirebaseFirestore.instance.collection('users');
                       final doc = await usersRef.doc(uid).get();
 
@@ -505,10 +501,10 @@ class _SignInPageState extends State<SignInPage> {
                         });
                       }
 
-                      // 4. Load into UserProvider
+                      
                       await context.read<UserProvider>().loadUserData(userId: uid);
 
-                      // 5. Go to MainMenu
+                     
                       if (mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
@@ -606,9 +602,7 @@ class _SignInPageState extends State<SignInPage> {
   }
 }
 
-// ============================================================================
-// 3. RESET PASSWORD PAGE
-// ============================================================================
+
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({Key? key}) : super(key: key);
 
@@ -853,9 +847,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   }
 }
 
-// ============================================================================
-// 4. PASSWORD RESET SUCCESS PAGE
-// ============================================================================
+
 class PasswordResetSuccessPage extends StatelessWidget {
   const PasswordResetSuccessPage({Key? key}) : super(key: key);
 
@@ -938,9 +930,7 @@ class PasswordResetSuccessPage extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// 5. SIGN UP PAGE
-// ============================================================================
+
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
 
@@ -982,7 +972,7 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> _handleSignUp() async {
-    // Validasi lokal
+    
     if (_passwordController.text.length < 6) {
       setState(() {
         _errorMessage = 'Password minimal 6 karakter';
@@ -1027,7 +1017,7 @@ class _SignUpPageState extends State<SignUpPage> {
         _isLoading = false;
       });
     } catch (e, st) {
-      // LOG error untuk melacak sumber Pigeon di console
+      
       debugPrint('SIGNUP ERROR OBJECT: $e');
       debugPrint('SIGNUP STACKTRACE:\n$st');
 
@@ -1359,25 +1349,25 @@ class _SignUpPageState extends State<SignUpPage> {
                     });
 
                     try {
-                      // 1. Sign in with Google (Firebase)
+                      
                       final user = await _authService.signInWithGoogle();
 
                       if (user == null) {
-                        // user cancelled Google flow
+                        
                         if (mounted) {
                           setState(() => _errorMessage = 'Google sign-in was cancelled');
                         }
                         return;
                       }
 
-                      // 2. Persist login state locally
+                      
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setBool('isLoggedIn', true);
                       await prefs.setString('userEmail', user.email ?? '');
 
                       final uid = user.uid;
 
-                      // 3. Ensure Firestore users/{uid} exists
+                      
                       final usersRef = FirebaseFirestore.instance.collection('users');
                       final doc = await usersRef.doc(uid).get();
 
@@ -1397,10 +1387,10 @@ class _SignUpPageState extends State<SignUpPage> {
                         });
                       }
 
-                      // 4. Load into UserProvider
+                      
                       await context.read<UserProvider>().loadUserData(userId: uid);
 
-                      // 5. Go to MainMenu
+                      
                       if (mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
@@ -1498,9 +1488,7 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 }
 
-// ============================================================================
-// 6. SIGN UP SUCCESS PAGE
-// ============================================================================
+
 class SignUpSuccessPage extends StatelessWidget {
   const SignUpSuccessPage({Key? key}) : super(key: key);
 
