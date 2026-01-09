@@ -62,19 +62,19 @@ class FirebaseLeaderboardService {
     return accuracyComponent + scoreComponent;
   }
 
-  /// Get top N players from leaderboard
+  
   Future<List<LeaderboardEntry>> getTopPlayers({
     int limit = 100,
   }) async {
     try {
-      // Get all users who have completed minimum quizzes
+     
       final snapshot = await _firestore
           .collection('users')
           .where('quizzesCompleted', isGreaterThanOrEqualTo: minQuizzesForRanking)
           .orderBy('quizzesCompleted', descending: false) // Required for compound query
           .get();
 
-      // Calculate ranking scores and sort
+     
       List<LeaderboardEntry> entries = [];
 
       for (var doc in snapshot.docs) {
@@ -90,10 +90,10 @@ class FirebaseLeaderboardService {
         entries.add(LeaderboardEntry.fromFirestore(doc, rankingScore));
       }
 
-      // Sort by ranking score
+      
       entries.sort((a, b) => b.rankingScore.compareTo(a.rankingScore));
 
-      // Assign ranks
+     
       for (int i = 0; i < entries.length; i++) {
         final entry = entries[i];
         entries[i] = LeaderboardEntry(
@@ -109,7 +109,7 @@ class FirebaseLeaderboardService {
         );
       }
 
-      // Return top N
+     
       return entries.take(limit).toList();
     } catch (e) {
       print('Error loading leaderboard: $e');
@@ -117,7 +117,7 @@ class FirebaseLeaderboardService {
     }
   }
 
-  /// Get user's position in leaderboard
+ 
   Future<int> getUserPosition(String userId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(userId).get();
@@ -136,7 +136,7 @@ class FirebaseLeaderboardService {
         totalScore: userScore,
       );
 
-      // Get all qualified users
+      
       final snapshot = await _firestore
           .collection('users')
           .where('quizzesCompleted', isGreaterThanOrEqualTo: minQuizzesForRanking)
@@ -161,14 +161,14 @@ class FirebaseLeaderboardService {
         }
       }
 
-      return betterThanUser + 1; // Position is 1-indexed
+      return betterThanUser + 1; 
     } catch (e) {
       print('Error getting user position: $e');
       return -1;
     }
   }
 
-  /// Stream leaderboard updates in real-time
+  
   Stream<List<LeaderboardEntry>> streamLeaderboard({int limit = 100}) {
     return _firestore
         .collection('users')
@@ -190,10 +190,10 @@ class FirebaseLeaderboardService {
         entries.add(LeaderboardEntry.fromFirestore(doc, rankingScore));
       }
 
-      // Sort by ranking score
+      
       entries.sort((a, b) => b.rankingScore.compareTo(a.rankingScore));
 
-      // Assign ranks
+      
       for (int i = 0; i < entries.length; i++) {
         final entry = entries[i];
         entries[i] = LeaderboardEntry(
@@ -213,7 +213,7 @@ class FirebaseLeaderboardService {
     });
   }
 
-  /// Update user stats after quiz completion
+  
   Future<void> updateUserStatsAfterQuiz({
     required String userId,
     required int correctAnswers,
@@ -234,13 +234,13 @@ class FirebaseLeaderboardService {
       final currentQuizzes = (data['quizzesCompleted'] ?? 0) as int;
       final currentAccuracy = (data['accuracy'] ?? 0).toDouble();
 
-      // Calculate new stats
+      
       final newCorrect = currentCorrect + correctAnswers;
       final newWrong = currentWrong + wrongAnswers;
       final newScore = currentScore + scoreEarned;
       final newQuizzes = currentQuizzes + 1;
 
-      // Calculate new accuracy
+      
       final totalQuestions = correctAnswers + wrongAnswers;
       final quizAccuracy = totalQuestions > 0
           ? (correctAnswers / totalQuestions) * 100
@@ -249,13 +249,13 @@ class FirebaseLeaderboardService {
       final totalAccuracy = (currentAccuracy * currentQuizzes) + quizAccuracy;
       final newAccuracy = totalAccuracy / newQuizzes;
 
-      // Calculate new ranking score
+      
       final newRankingScore = calculateRankingScore(
         accuracy: newAccuracy,
         totalScore: newScore,
       );
 
-      // Determine UKBI level
+      
       String ukbiLevel;
       if (newAccuracy >= 95.0) {
         ukbiLevel = 'Istimewa';
@@ -271,7 +271,7 @@ class FirebaseLeaderboardService {
         ukbiLevel = 'Pemula';
       }
 
-      // Update Firestore
+      
       await _firestore.collection('users').doc(userId).update({
         'correctAnswers': newCorrect,
         'wrongAnswers': newWrong,
