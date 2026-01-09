@@ -17,7 +17,7 @@ class MainMenu extends StatelessWidget {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Make status bar transparent
+    
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -42,32 +42,32 @@ class MainMenu extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              // Profile picture circle (over gray circle on left)
+              
               Positioned(
                 top: screenHeight * 0.120,
                 left: screenWidth * 0.10,
                 child: _buildProfilePicture(context),
               ),
-              // Username and UKBI level (BELOW profile picture)
+              
               Positioned(
                 top: screenHeight * 0.23,
                 left: screenWidth * 0.07,
                 child: _buildUserNameSection(context),
               ),
-              // Performance stats (IN the dark purple box on RIGHT)
+              
               Positioned(
                 top: screenHeight * 0.165,
                 right: screenWidth * 0.08,
                 left: screenWidth * 0.41,
                 child: _buildPerformanceStats(context),
               ),
-              // Play button (center)
+              
               Positioned(
                 top: screenHeight * 0.49,
                 left: screenWidth * 0.5 - 75,
                 child: _buildPlayButton(context),
               ),
-              // Bottom buttons (centered in colored squares)
+             
               Positioned(
                 bottom: screenHeight * 0.075,
                 left: 0,
@@ -81,7 +81,7 @@ class MainMenu extends StatelessWidget {
     );
   }
 
-  // Profile picture circle
+  
   Widget _buildProfilePicture(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
@@ -162,10 +162,10 @@ class MainMenu extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  user.username.split(' ').first,  // Show only "Paladin"
+                  user.username.split(' ').first, 
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 28,  // Reduced from 35
+                    fontSize: 28, 
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -337,9 +337,9 @@ class MainMenu extends StatelessWidget {
               final userProvider = context.read<UserProvider>();
               var user = userProvider.currentUserOrNull;
 
-              // ✅ If user data not loaded, try loading it
+              
               if (user == null) {
-                print('⚠️ User data not loaded, attempting to load...');
+                print('User data not loaded, attempting to load...');
 
                 final currentUser = FirebaseAuth.instance.currentUser;
                 if (currentUser == null) {
@@ -349,7 +349,7 @@ class MainMenu extends StatelessWidget {
                   return;
                 }
 
-                // Show loading indicator
+               
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -358,14 +358,14 @@ class MainMenu extends StatelessWidget {
 
                 try {
                   await userProvider.loadUserData(userId: currentUser.uid);
-                  Navigator.pop(context); // Close loading dialog
+                  Navigator.pop(context); 
 
                   user = userProvider.currentUserOrNull;
                   if (user == null) {
                     throw Exception('Failed to load user data');
                   }
                 } catch (e) {
-                  Navigator.pop(context); // Close loading dialog
+                  Navigator.pop(context); 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error loading user data: $e')),
                   );
@@ -373,7 +373,7 @@ class MainMenu extends StatelessWidget {
                 }
               }
 
-              // ✅ Now user is guaranteed to be loaded
+              
               Navigator.push(
                 context,
                 MaterialPageRoute(
