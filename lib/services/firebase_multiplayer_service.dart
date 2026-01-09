@@ -4,7 +4,7 @@ import '../QuizModel.dart';
 class FirebaseMultiplayerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get all available rooms
+  
   Stream<List<MultiplayerRoom>> getAvailableRooms() {
     return _firestore
         .collection('multiplayer_rooms')
@@ -18,7 +18,7 @@ class FirebaseMultiplayerService {
     );
   }
 
-  // Create a new room
+ 
   Future<String?> createRoom({
     required String quizId,
     required String hostId,
@@ -46,7 +46,7 @@ class FirebaseMultiplayerService {
     }
   }
 
-  // Join a room
+  
   Future<bool> joinRoom({
     required String roomId,
     required String playerId,
@@ -88,7 +88,7 @@ class FirebaseMultiplayerService {
     }
   }
 
-  // Leave a room
+  
   Future<bool> leaveRoom({
     required String roomId,
     required String playerId,
@@ -110,7 +110,7 @@ class FirebaseMultiplayerService {
         List<String> newPlayerNames = List.from(room.playerNames)..removeAt(playerIndex);
 
         if (newPlayerIds.isEmpty) {
-          // Delete room if no players left
+          
           transaction.delete(roomRef);
         } else {
           transaction.update(roomRef, {
@@ -127,7 +127,7 @@ class FirebaseMultiplayerService {
     }
   }
 
-  // Get room details (real-time)
+ 
   Stream<MultiplayerRoom?> getRoomStream(String roomId) {
     return _firestore
         .collection('multiplayer_rooms')
@@ -141,7 +141,7 @@ class FirebaseMultiplayerService {
     });
   }
 
-  // Start game
+  
   Future<bool> startGame(String roomId) async {
     try {
       await _firestore.collection('multiplayer_rooms').doc(roomId).update({
@@ -154,7 +154,7 @@ class FirebaseMultiplayerService {
     }
   }
 
-  // End game
+  
   Future<bool> endGame(String roomId) async {
     try {
       await _firestore.collection('multiplayer_rooms').doc(roomId).update({
