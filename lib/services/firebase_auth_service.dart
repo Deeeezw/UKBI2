@@ -6,7 +6,7 @@ class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Email & password sign in
+  
   Future<User?> signInWithEmail({
     required String email,
     required String password,
@@ -22,7 +22,7 @@ class FirebaseAuthService {
     }
   }
 
-  // Email & password sign up
+  
   Future<User?> signUpWithEmail({
     required String email,
     required String password,
@@ -33,11 +33,11 @@ class FirebaseAuthService {
         password: password,
       );
 
-      // Create Firestore user document if needed
+      
       final user = credential.user;
       if (user != null) {
         await _firestore.collection('users').doc(user.uid).set({
-          'username': email.split('@')[0], // default username from email
+          'username': email.split('@')[0], 
           'userId': user.uid,
           'email': email,
           'rank': 'Unranked',
@@ -59,17 +59,17 @@ class FirebaseAuthService {
     }
   }
 
-  // Google Sign In
+  
   Future<User?> signInWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn(
       serverClientId: '482188310443-9b2preleajpl9pm1p8v5s3kg3mpt225b.apps.googleusercontent.com',
     );
 
-    // Actually sign in to get the user
+   
     final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
     if (googleUser == null) {
-      // User cancelled the flow
+    
       return null;
     }
 
@@ -87,13 +87,13 @@ class FirebaseAuthService {
     return userCredential.user;
   }
 
-  // Sign out
+
   Future<void> signOut() async {
     await _auth.signOut();
     await GoogleSignIn().signOut();
   }
 
-  // Handle authentication exceptions
+  
   String handleAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'weak-password':
