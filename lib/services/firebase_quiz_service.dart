@@ -13,7 +13,7 @@ class FirebaseQuizService {
     );
   }
 
-  // Get single quiz by ID
+  
   Future<QuizModel?> getQuizById(String quizId) async {
     try {
       DocumentSnapshot doc = await _firestore.collection('quizzes').doc(quizId).get();
@@ -27,7 +27,7 @@ class FirebaseQuizService {
     }
   }
 
-  // ✅ Get questions for a quiz from the 'questions' SUBCOLLECTION
+  
   Future<List<QuestionModel>> getQuizQuestions(String quizId) async {
     try {
       print('🔥 Fetching questions for quiz: $quizId');
@@ -35,7 +35,7 @@ class FirebaseQuizService {
       QuerySnapshot snapshot = await _firestore
           .collection('quizzes')
           .doc(quizId)
-          .collection('questions')  // ✅ Subcollection
+          .collection('questions')  
           .get();
 
       print('🔥 Found ${snapshot.docs.length} questions');
@@ -54,18 +54,18 @@ class FirebaseQuizService {
       return questions;
     } catch (e) {
       print('❌ Error getting questions: $e');
-      // Fallback to local questions
+      
       return QuizDataStore.getQuestionsForQuiz(quizId);
     }
   }
 
-  // Add a new quiz (for admin)
+  
   Future<String?> addQuiz(QuizModel quiz, List<QuestionModel> questions) async {
     try {
-      // Add quiz
+      
       DocumentReference quizRef = await _firestore.collection('quizzes').add(quiz.toJson());
 
-      // Add questions to subcollection
+      
       for (var question in questions) {
         await quizRef.collection('questions').add(question.toJson());
       }
