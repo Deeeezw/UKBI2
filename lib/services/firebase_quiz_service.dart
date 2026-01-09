@@ -4,7 +4,7 @@ import '../QuizModel.dart';
 class FirebaseQuizService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get all quizzes
+  
   Stream<List<QuizModel>> getQuizzes() {
     return _firestore.collection('quizzes').snapshots().map(
           (snapshot) => snapshot.docs
