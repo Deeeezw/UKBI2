@@ -71,7 +71,7 @@ class ProfileTab extends StatelessWidget {
               ),
               const SizedBox(height: 8),
 
-              // ✅ Username - Centered with edit button
+             
               Center(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -102,7 +102,7 @@ class ProfileTab extends StatelessWidget {
 
               const SizedBox(height: 5),
 
-              // ✅ Display Name - Centered with edit button
+             
               Center(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -130,7 +130,7 @@ class ProfileTab extends StatelessWidget {
                 ),
               ),
 
-              // Main content card
+              
               Container(
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(16),
@@ -141,7 +141,7 @@ class ProfileTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // About Me section
+                   
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -178,7 +178,7 @@ class ProfileTab extends StatelessWidget {
 
                     const SizedBox(height: 16),
 
-                    // Hobbies section
+                  
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -203,7 +203,7 @@ class ProfileTab extends StatelessWidget {
 
                     const SizedBox(height: 16),
 
-                    // Statistics section
+                   
                     const Text(
                       'Statistics',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -224,7 +224,7 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
-  // Edit dialog for text fields
+  
   static void _showEditDialog(
       BuildContext context,
       String title,
@@ -272,7 +272,7 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
-  // Edit hobbies dialog
+  
   static void _showEditHobbiesDialog(BuildContext context, UserProvider userProvider) {
     final currentHobbies = List<String>.from(userProvider.currentUser.hobbies);
     final hobbyController = TextEditingController();
@@ -287,7 +287,7 @@ class ProfileTab extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Add new hobby
+                
                 Row(
                   children: [
                     Expanded(
@@ -314,7 +314,7 @@ class ProfileTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // List of current hobbies
+                
                 if (currentHobbies.isNotEmpty)
                   SizedBox(
                     height: 200,
@@ -387,7 +387,7 @@ class ProfileTab extends StatelessWidget {
   );
 }
 
-// ✅ Leaderboard Tab - SIMPLIFIED (no isLoading check)
+
 class LeaderboardTab extends StatefulWidget {
   const LeaderboardTab({super.key});
 
@@ -419,7 +419,7 @@ class _LeaderboardTabState extends State<LeaderboardTab> {
       builder: (context, userProvider, child) {
         final leaderboard = userProvider.leaderboard;
 
-        // Show loading indicator
+        
         if (_isLoading) {
           return const Center(
             child: CircularProgressIndicator(
@@ -428,7 +428,7 @@ class _LeaderboardTabState extends State<LeaderboardTab> {
           );
         }
 
-        // Show empty state
+        
         if (leaderboard.isEmpty) {
           return Center(
             child: Column(
@@ -458,7 +458,7 @@ class _LeaderboardTabState extends State<LeaderboardTab> {
           );
         }
 
-        // Show leaderboard list
+        
         return Container(
           color: const Color(0xFF4C15A9),
           child: ListView.builder(
